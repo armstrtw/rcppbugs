@@ -1,0 +1,6 @@
+useDynLib(RCppBugs)
+
+export(run.model,
+       normal,
+       uniform
+       )

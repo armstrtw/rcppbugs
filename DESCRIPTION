@@ -1,0 +1,10 @@
+Package: RCppBugs
+Title: R binding for zmq (http://www.zeromq.org/)
+Version: 0.6.5
+Maintainer: Whit Armstrong <armstrong.whit@gmail.com>
+Author: Whit Armstrong <armstrong.whit@gmail.com>
+Description: R binding for CppBugs
+License: GPL-3
+SystemRequirements: armadillo
+URL: http://github.com/armstrtw/rcppbugs
+BugReports: http://github.com/armstrtw/rcppbugs/issues
