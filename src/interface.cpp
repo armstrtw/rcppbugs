@@ -37,6 +37,7 @@ extern "C" SEXP run_model(SEXP mcmc_nodes, SEXP iterations, SEXP burn_in, SEXP a
 ArmaContext* mapToArma(contextMapT& m, SEXP x);
 cppbugs::MCMCObject* createMCMC(contextMapT m, SEXP x);
 cppbugs::MCMCObject* createNormal(contextMapT m, SEXP x);
+cppbugs::MCMCObject* createUniform(contextMapT m, SEXP x);
 
 SEXP logp(SEXP x) {
   double ans = std::numeric_limits<double>::quiet_NaN();
@@ -131,7 +132,7 @@ cppbugs::MCMCObject* createMCMC(contextMapT m, SEXP x) {
     ans = createNormal(m, x);
     break;
   case uniformDistT:
-    ans = NULL;
+    ans = createUniform(m, x);
     break;
   case gammaDistT:
   case betaDistT:
@@ -196,8 +197,8 @@ cppbugs::MCMCObject* createNormal(contextMapT m, SEXP x) {
 cppbugs::MCMCObject* createUniform(contextMapT m, SEXP x) {
   cppbugs::MCMCObject* ans;
 
-  SEXP lower_sexp = Rf_getAttrib(x,Rf_install("mu"));
-  SEXP upper_sexp = Rf_getAttrib(x,Rf_install("tau"));
+  SEXP lower_sexp = Rf_getAttrib(x,Rf_install("lower"));
+  SEXP upper_sexp = Rf_getAttrib(x,Rf_install("upper"));
   SEXP observed_sexp = Rf_getAttrib(x,Rf_install("observed"));
 
   if(lower_sexp == R_NilValue || upper_sexp == R_NilValue || observed_sexp == R_NilValue) {

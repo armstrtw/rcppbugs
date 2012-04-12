@@ -24,6 +24,13 @@ run.model <- function(..., iterations, burn, adapt, thin) {
     .Call("run_model", obj.list, iterations, burn, adapt, thin, rho, PACKAGE="RCppBugs")
 }
 
+deterministic <- function(f,...) {
+    args <- list(...)
+    x <- do.call(f,args)
+    attr(x,"distributed") <- "deterministic"
+    x
+}
+
 normal <- function(x,mu,tau,observed=FALSE) {
     attr(x,"distributed") <- "normal"
     attr(x,"mu") <- mu
