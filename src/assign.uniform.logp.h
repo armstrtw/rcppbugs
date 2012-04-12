@@ -15,28 +15,28 @@
 // You should have received a copy of the GNU General Public License     //
 // along with this program.  If not, see <http://www.gnu.org/licenses/>. //
 
-#ifndef ASSIGN_NORMAL_LOGP_H
-#define ASSIGN_NORMAL_LOGP_H
+#ifndef ASSIGN_UNIFORM_LOGP_H
+#define ASSIGN_UNIFORM_LOGP_H
 
 #include "arma.context.h"
 #include <cppbugs/cppbugs.hpp>
 
 template<template<typename> class MCTYPE, typename T>
-MCTYPE<T>* assignNormalLogp(T& x, ArmaContext* mu, ArmaContext* tau) {
+MCTYPE<T>* assignUniformLogp(T& x, ArmaContext* lower, ArmaContext* upper) {
   MCTYPE<T>* node = new MCTYPE<T>(x);
 
-  if(mu->getArmaType() == doubleT && tau->getArmaType() == doubleT) { node->dnorm(mu->getDouble(),tau->getDouble()); }
-  else if(mu->getArmaType() == vecT && tau->getArmaType() == doubleT) { node->dnorm(mu->getVec(),tau->getDouble()); }
-  else if(mu->getArmaType() == matT && tau->getArmaType() == doubleT) { node->dnorm(mu->getMat(),tau->getDouble()); }
-  else if(mu->getArmaType() == doubleT && tau->getArmaType() == vecT) { node->dnorm(mu->getDouble(),tau->getVec()); }
-  else if(mu->getArmaType() == vecT && tau->getArmaType() == vecT) { node->dnorm(mu->getVec(),tau->getVec()); }
-  else if(mu->getArmaType() == matT && tau->getArmaType() == vecT) { node->dnorm(mu->getMat(),tau->getVec()); }
-  else if(mu->getArmaType() == doubleT && tau->getArmaType() == matT) { node->dnorm(mu->getDouble(),tau->getMat()); }
-  else if(mu->getArmaType() == vecT && tau->getArmaType() == matT) { node->dnorm(mu->getVec(),tau->getMat()); }
-  else if(mu->getArmaType() == matT && tau->getArmaType() == matT) { node->dnorm(mu->getMat(),tau->getMat()); }
+  if(lower->getArmaType() == doubleT && upper->getArmaType() == doubleT) { node->dunif(lower->getDouble(),upper->getDouble()); }
+  else if(lower->getArmaType() == vecT && upper->getArmaType() == doubleT) { node->dunif(lower->getVec(),upper->getDouble()); }
+  else if(lower->getArmaType() == matT && upper->getArmaType() == doubleT) { node->dunif(lower->getMat(),upper->getDouble()); }
+  else if(lower->getArmaType() == doubleT && upper->getArmaType() == vecT) { node->dunif(lower->getDouble(),upper->getVec()); }
+  else if(lower->getArmaType() == vecT && upper->getArmaType() == vecT) { node->dunif(lower->getVec(),upper->getVec()); }
+  else if(lower->getArmaType() == matT && upper->getArmaType() == vecT) { node->dunif(lower->getMat(),upper->getVec()); }
+  else if(lower->getArmaType() == doubleT && upper->getArmaType() == matT) { node->dunif(lower->getDouble(),upper->getMat()); }
+  else if(lower->getArmaType() == vecT && upper->getArmaType() == matT) { node->dunif(lower->getVec(),upper->getMat()); }
+  else if(lower->getArmaType() == matT && upper->getArmaType() == matT) { node->dunif(lower->getMat(),upper->getMat()); }
   else { throw std::logic_error("ERROR: invalid type used in normal distribution."); }
 
   return node;
 }
 
-#endif // ASSIGN_NORMAL_LOGP_H
+#endif // ASSIGN_UNIFORM_LOGP_H

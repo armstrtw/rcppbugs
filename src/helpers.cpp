@@ -22,6 +22,7 @@
 #include <stdexcept>
 #include <Rinternals.h>
 #include "distribution.types.h"
+#include "helpers.h"
 
 void setAtty(SEXP x, const char* atty_name, const char* atty_str) {
   SEXP atty;
@@ -66,17 +67,17 @@ std::vector<R_len_t> getDims(SEXP x) {
   return ans;
 }
 
-typedef std::map<std::string, distT> distMapT;
 distMapT initDistributions() {
   distMapT ans;
   ans["normal"] = normalDistT;
+  ans["uniform"] = uniformDistT;
   ans["gamma"] = gammaDistT;
   ans["beta"] = betaDistT;
   ans["binomial"] = binomialDistT;
   return ans;
 }
 
-distT stringIndex(const std::string distibution) {
+distT matchDistibution(const std::string distibution) {
   static distMapT distMap = initDistributions();
   std::stringstream error_ss;
   if( distMap.count(distibution) == 0) {

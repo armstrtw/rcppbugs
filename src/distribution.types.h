@@ -19,6 +19,6 @@
 #ifndef DISTRIBUTION_TYPES_H
 #define DISTRIBUTION_TYPES_H
 
-enum distT { normalDistT, gammaDistT, betaDistT, binomialDistT };
+enum distT { normalDistT, uniformDistT, gammaDistT, betaDistT, binomialDistT };
 
 #endif // DISTRIBUTION_TYPES_H

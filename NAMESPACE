@@ -1,6 +1,7 @@
 useDynLib(RCppBugs)
 
-export(run.model,
+export(logp,
+       run.model,
        normal,
        uniform
        )

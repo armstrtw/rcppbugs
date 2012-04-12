@@ -1,6 +1,6 @@
 // -*- mode: C++; c-indent-level: 2; c-basic-offset: 2; tab-width: 8 -*-
 ///////////////////////////////////////////////////////////////////////////
-// Copyright (C) 2012  Whit Armstrong                                    //
+// Copyright (C) 2011  Whit Armstrong                                    //
 //                                                                       //
 // This program is free software: you can redistribute it and/or modify  //
 // it under the terms of the GNU General Public License as published by  //
@@ -16,20 +16,11 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>. //
 ///////////////////////////////////////////////////////////////////////////
 
-
-#ifndef HELPERS_H
-#define HELPERS_H
+#ifndef RAW_ADDRESS_H
+#define RAW_ADDRESS_H
 
 #include <Rinternals.h>
-#include "distribution.types.h"
 
-typedef std::map<std::string, distT> distMapT;
+void* rawAddress(SEXP x);
 
-void setAtty(SEXP x, const char* atty_name, const char* str);
-void setAtty(SEXP x, const char* atty_name, SEXP sexp);
-std::string getAttr(SEXP x, const char* attr_name);
-std::vector<R_len_t> getDims(SEXP x);
-distT matchDistibution(const std::string distibution);
-distMapT initDistributions();
-
-#endif // HELPERS_H
+#endif // RAW_ADDRESS_H

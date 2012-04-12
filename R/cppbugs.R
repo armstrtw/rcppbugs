@@ -15,7 +15,11 @@
 ## along with this program.  If not, see <http:##www.gnu.org#licenses#>. ##
 ###########################################################################
 
-run.model <- function(..., iterations, burn, adapt, thin, rho=sys.frame(sys.parent())) {
+logp <- function(x) {
+    .Call("logp",x,PACKAGE="RCppBugs")
+}
+
+run.model <- function(..., iterations, burn, adapt, thin) {
     obj.list <- list(...)
     .Call("run_model", obj.list, iterations, burn, adapt, thin, rho, PACKAGE="RCppBugs")
 }
@@ -25,6 +29,7 @@ normal <- function(x,mu,tau,observed=FALSE) {
     attr(x,"mu") <- mu
     attr(x,"tau") <- tau
     attr(x,"observed") <- observed
+    x
 }
 
 uniform <- function(x,lower,upper,observed=FALSE) {
@@ -32,8 +37,5 @@ uniform <- function(x,lower,upper,observed=FALSE) {
     attr(x,"lower") <- lower
     attr(x,"upper") <- upper
     attr(x,"observed") <- observed
-}
-
-logp <- function(x) {
-    .Call("logp",x,PACKAGE="RCppBugs")
+    x
 }
