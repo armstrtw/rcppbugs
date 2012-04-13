@@ -2,6 +2,7 @@ useDynLib(RCppBugs)
 
 export(logp,
        run.model,
+       deterministic,
        normal,
        uniform
        )

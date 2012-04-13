@@ -21,7 +21,13 @@
 #include <boost/random.hpp>
 #include <Rcpp.h>
 #include <RcppArmadillo.h>
-#include <cppbugs/cppbugs.hpp>
+//#include <cppbugs/cppbugs.hpp>
+#include <cppbugs/mcmc.deterministic.hpp>
+#include <cppbugs/mcmc.normal.hpp>
+#include <cppbugs/mcmc.uniform.hpp>
+#include <cppbugs/mcmc.gamma.hpp>
+#include <cppbugs/mcmc.binomial.hpp>
+#include <cppbugs/mcmc.bernoulli.hpp>
 //#include "interface.h"
 #include "helpers.h"
 #include "raw.address.h"
@@ -29,6 +35,7 @@
 #include "arma.context.h"
 #include "assign.normal.logp.h"
 #include "assign.uniform.logp.h"
+#include "r.deterministic.h"
 
 typedef std::map<void*,ArmaContext*> contextMapT;
 
@@ -38,24 +45,27 @@ ArmaContext* mapToArma(contextMapT& m, SEXP x);
 cppbugs::MCMCObject* createMCMC(contextMapT m, SEXP x);
 cppbugs::MCMCObject* createNormal(contextMapT m, SEXP x);
 cppbugs::MCMCObject* createUniform(contextMapT m, SEXP x);
+cppbugs::MCMCObject* createDeterministic(contextMapT m, SEXP x);
 
 SEXP logp(SEXP x) {
   double ans = std::numeric_limits<double>::quiet_NaN();
   contextMapT m;
-  cppbugs::MCMCObject* node;
+  cppbugs::MCMCObject* node(NULL);
   try {
     node = createMCMC(m, x);
   } catch (std::logic_error &e) {
-    REprintf("%s",e.what());
+    REprintf("%s\n",e.what());
+    delete node;
     return R_NilValue;
   }
 
   cppbugs::Stochastic* sp = dynamic_cast<cppbugs::Stochastic*>(node);
-  if(sp && sp->getLikelihoodFunctor() ) {
-    ans = sp->getLikelihoodFunctor()->calc();
+  if(sp) {
+    ans = sp->loglik();
   } else {
-    REprintf("ERROR: could not convert node to stochastic");
+    REprintf("ERROR: could not convert node to stochastic.\n");
   }
+  delete node;
   return Rcpp::wrap(ans);
 }
 
@@ -79,7 +89,7 @@ SEXP run_model(SEXP nodes_sexp, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP 
       nodes.push_back(createMCMC(contextMap,VECTOR_ELT(nodes_sexp,i)));
     }
   } catch (std::logic_error &e) {
-    REprintf("%s",e.what());
+    REprintf("%s\n",e.what());
     return R_NilValue;
   }
 
@@ -128,6 +138,9 @@ cppbugs::MCMCObject* createMCMC(contextMapT m, SEXP x) {
   cppbugs::MCMCObject* ans;
 
   switch(distributed) {
+  case deterministicT:
+    ans = createDeterministic(m, x);
+    break;
   case normalDistT:
     ans = createNormal(m, x);
     break;
@@ -140,6 +153,79 @@ cppbugs::MCMCObject* createMCMC(contextMapT m, SEXP x) {
   default:
     ans = NULL;
     throw std::logic_error("ERROR: distribution not supported yet.");
+  }
+  return ans;
+}
+
+cppbugs::MCMCObject* createDeterministic(contextMapT m, SEXP x) {
+  cppbugs::MCMCObject* ans(NULL);
+
+  SEXP fun_sexp = Rf_getAttrib(x,Rf_install("fun"));
+  SEXP args_sexp = Rf_getAttrib(x,Rf_install("args"));
+
+  if(args_sexp == R_NilValue) {
+    throw std::logic_error("ERROR: args attribute not defined.");
+  }
+
+  // map to arma types
+  ArmaContext* x_arma = mapToArma(m, x);
+  for(R_len_t i = 0; i < Rf_length(args_sexp); i++) {
+    if(TYPEOF(VECTOR_ELT(args_sexp,i)) != REALSXP && TYPEOF(VECTOR_ELT(args_sexp,i)) != INTSXP) {
+      throw std::logic_error("ERROR: args must be int or real.");
+    }
+    mapToArma(m, VECTOR_ELT(args_sexp,i));
+  }
+
+  switch(x_arma->getArmaType()) {
+  case doubleT:
+    switch(Rf_length(args_sexp)) {
+    case 1:
+      ans = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_sexp,VECTOR_ELT(args_sexp,0));
+      break;
+    case 2:
+      ans = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_sexp,VECTOR_ELT(args_sexp,0),VECTOR_ELT(args_sexp,1));
+      break;
+    case 3:
+      ans = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_sexp,VECTOR_ELT(args_sexp,0),VECTOR_ELT(args_sexp,1),VECTOR_ELT(args_sexp,2));
+      break;
+    default:
+      throw std::logic_error("ERROR: only 3 arguments supported for deterministic (for now).");
+    }
+  case vecT:
+    switch(Rf_length(args_sexp)) {
+    case 1:
+      ans = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_sexp,VECTOR_ELT(args_sexp,0));
+      break;
+    case 2:
+      ans = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_sexp,VECTOR_ELT(args_sexp,0),VECTOR_ELT(args_sexp,1));
+      break;
+    case 3:
+      ans = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_sexp,VECTOR_ELT(args_sexp,0),VECTOR_ELT(args_sexp,1),VECTOR_ELT(args_sexp,2));
+      break;
+    default:
+      throw std::logic_error("ERROR: only 3 arguments supported for deterministic (for now).");
+    }
+    break;
+  case matT:
+    switch(Rf_length(args_sexp)) {
+    case 1:
+      ans = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_sexp,VECTOR_ELT(args_sexp,0));
+      break;
+    case 2:
+      ans = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_sexp,VECTOR_ELT(args_sexp,0),VECTOR_ELT(args_sexp,1));
+      break;
+    case 3:
+      ans = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_sexp,VECTOR_ELT(args_sexp,0),VECTOR_ELT(args_sexp,1),VECTOR_ELT(args_sexp,2));
+      break;
+    default:
+      throw std::logic_error("ERROR: only 3 arguments supported for deterministic (for now).");
+    }
+    break;
+  case intT:
+  case ivecT:
+  case imatT:
+  default:
+    throw std::logic_error("ERROR: deterministic must be a continuous variable type (double, vec, or mat) for now (under development).");
   }
   return ans;
 }

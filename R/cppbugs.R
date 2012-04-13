@@ -26,8 +26,13 @@ run.model <- function(..., iterations, burn, adapt, thin) {
 
 deterministic <- function(f,...) {
     args <- list(...)
+
+    ## this could fail for internl/primitive functions
+    stopifnot(length(formals(f))==length(args))
     x <- do.call(f,args)
     attr(x,"distributed") <- "deterministic"
+    attr(x,"fun") <- f
+    attr(x,"args") <- args
     x
 }
 

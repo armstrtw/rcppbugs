@@ -34,7 +34,6 @@ void setAtty(SEXP x, const char* atty_name, const char* atty_str) {
 
 void setAtty(SEXP x, const char* atty_name, SEXP atty_sexp) {
   setAttrib(x, install(atty_name), atty_sexp);
-  UNPROTECT(1);
 }
 
 std::string getAttr(SEXP x, const char* attr_name) {
@@ -69,6 +68,7 @@ std::vector<R_len_t> getDims(SEXP x) {
 
 distMapT initDistributions() {
   distMapT ans;
+  ans["deterministic"] = deterministicT;
   ans["normal"] = normalDistT;
   ans["uniform"] = uniformDistT;
   ans["gamma"] = gammaDistT;

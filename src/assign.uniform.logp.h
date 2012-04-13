@@ -19,7 +19,7 @@
 #define ASSIGN_UNIFORM_LOGP_H
 
 #include "arma.context.h"
-#include <cppbugs/cppbugs.hpp>
+#include <cppbugs/mcmc.uniform.hpp>
 
 template<template<typename> class MCTYPE, typename T>
 MCTYPE<T>* assignUniformLogp(T& x, ArmaContext* lower, ArmaContext* upper) {
