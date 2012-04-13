@@ -55,7 +55,8 @@ class ArmaVec : public ArmaContext {
 private:
   arma::vec x_;
 public:
-  ArmaVec(SEXP x_sexp): ArmaContext(vecT), x_(Rcpp::as<arma::vec>(x_sexp)) {}
+  //ArmaVec(SEXP x_sexp): ArmaContext(vecT), x_(Rcpp::as<arma::vec>(x_sexp)) {}
+  ArmaVec(SEXP x_sexp): ArmaContext(vecT), x_(arma::vec(REAL(x_sexp), Rf_length(x_sexp), false)) {}
   arma::vec& getVec() { return x_; }
 };
 
@@ -63,7 +64,8 @@ class ArmaMat : public ArmaContext {
 private:
   arma::mat x_;
 public:
-  ArmaMat(SEXP x_sexp): ArmaContext(matT), x_(Rcpp::as<arma::mat>(x_sexp)) {}
+  //ArmaMat(SEXP x_sexp): ArmaContext(matT), x_(Rcpp::as<arma::mat>(x_sexp)) {}
+  ArmaMat(SEXP x_sexp): ArmaContext(matT), x_(arma::mat(REAL(x_sexp), Rf_nrows(x_sexp), Rf_ncols(x_sexp), false)) {}
   arma::mat& getMat() { return x_; }
 };
 

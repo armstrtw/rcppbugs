@@ -20,13 +20,14 @@
 #ifndef HELPERS_H
 #define HELPERS_H
 
+#include <map>
+#include <string>
+#include <vector>
 #include <Rinternals.h>
 #include "distribution.types.h"
 
 typedef std::map<std::string, distT> distMapT;
 
-void setAtty(SEXP x, const char* atty_name, const char* str);
-void setAtty(SEXP x, const char* atty_name, SEXP sexp);
 std::string getAttr(SEXP x, const char* attr_name);
 std::vector<R_len_t> getDims(SEXP x);
 distT matchDistibution(const std::string distibution);

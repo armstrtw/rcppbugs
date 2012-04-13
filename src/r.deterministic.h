@@ -66,10 +66,13 @@ namespace cppbugs {
     }
 
     static void updateFromSEXP(arma::vec& dest, SEXP x) {
+      //Rprintf("dest size: %d\n",dest.n_elem);
+      //Rprintf("src sizee: %d\n", Rf_length(x));
       memcpy(dest.memptr(),REAL(x),sizeof(double)*dest.n_elem);
     }
 
     static void updateFromSEXP(arma::mat& dest, SEXP x) {
+      //Rprintf("dest size: %d\n",dest.n_elem);
       memcpy(dest.memptr(),REAL(x),sizeof(double)*dest.n_elem);
     }
 
@@ -78,6 +81,7 @@ namespace cppbugs {
       SEXP ans;
       //Dynamic<T>::value = as<typename T>::(eval(fo_, env_));
       PROTECT(ans = Rf_eval(fo_, R_GlobalEnv));
+      //Rprintf("RDeterministic size: %d\n", Rf_length(ans));
       updateFromSEXP(Dynamic<T>::value,ans);
       UNPROTECT(1);
     }

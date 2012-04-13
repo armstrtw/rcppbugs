@@ -18,6 +18,7 @@
 #ifndef R_MCMC_MODEL_H
 #define R_MCMC_MODEL_H
 
+#include <iostream>
 #include <cmath>
 #include <vector>
 #include <map>
@@ -64,7 +65,7 @@ namespace cppbugs {
         // FIXME: add test here to check starting from invalid logp or NaN
         addStochcasticNode(node);
 
-        if(node->isStochastic() && !node->isObserved()) {
+        if((node->isStochastic() && !node->isObserved()) || node->isDeterministc()) {
           jumping_nodes.push_back(node);
         }
 
@@ -114,11 +115,13 @@ namespace cppbugs {
       logp_value  = -std::numeric_limits<double>::infinity();
       old_logp_value = -std::numeric_limits<double>::infinity();
       for(int i = 1; i <= (iterations + burn); i++) {
+        //std::cout << i << std::endl;
         old_logp_value = logp_value;
         preserve();
         jump();
         //update();
         logp_value = logp();
+        //std::cout << logp_value << std::endl;
         if(reject(logp_value, old_logp_value)) {
           revert();
           logp_value = old_logp_value;
@@ -130,7 +133,6 @@ namespace cppbugs {
           tally();
         }
       }
-
     }
 
   public:
@@ -167,7 +169,6 @@ namespace cppbugs {
     void sample(int iterations, int burn, int adapt, int thin) {
       if(iterations % thin) {
         throw std::logic_error("ERROR: interations not a multiple of thin.");
-        return;
       }
       // tuning phase
       tune(adapt,static_cast<int>(adapt/100));

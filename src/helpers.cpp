@@ -16,25 +16,10 @@
 ///////////////////////////////////////////////////////////////////////////
 
 #include <sstream>
-#include <vector>
-#include <map>
-#include <string>
 #include <stdexcept>
 #include <Rinternals.h>
 #include "distribution.types.h"
 #include "helpers.h"
-
-void setAtty(SEXP x, const char* atty_name, const char* atty_str) {
-  SEXP atty;
-  PROTECT(atty = allocVector(STRSXP, 1));
-  SET_STRING_ELT(atty, 0, mkChar(atty_str));
-  setAttrib(x, install(atty_name), atty);
-  UNPROTECT(1);
-}
-
-void setAtty(SEXP x, const char* atty_name, SEXP atty_sexp) {
-  setAttrib(x, install(atty_name), atty_sexp);
-}
 
 std::string getAttr(SEXP x, const char* attr_name) {
   std::string ans;
@@ -63,6 +48,7 @@ std::vector<R_len_t> getDims(SEXP x) {
       ans.push_back(INTEGER(dims)[i]);
     }
   }
+  Rprintf("dim size: %d\n",ans.size());
   return ans;
 }
 
