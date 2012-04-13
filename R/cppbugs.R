@@ -21,7 +21,8 @@ logp <- function(x) {
 
 run.model <- function(..., iterations, burn, adapt, thin) {
     obj.list <- list(...)
-    .Call("run_model", obj.list, iterations, burn, adapt, thin, rho, PACKAGE="RCppBugs")
+    ##.Call("run_model", obj.list, iterations, burn, adapt, thin, rho, PACKAGE="RCppBugs")
+    .Call("run_model", obj.list, iterations, burn, adapt, thin, PACKAGE="RCppBugs")
 }
 
 deterministic <- function(f,...) {

@@ -36,6 +36,7 @@
 #include "assign.normal.logp.h"
 #include "assign.uniform.logp.h"
 #include "r.deterministic.h"
+#include "r.mcmc.model.h"
 
 typedef std::map<void*,ArmaContext*> contextMapT;
 
@@ -69,7 +70,7 @@ SEXP logp(SEXP x) {
   return Rcpp::wrap(ans);
 }
 
-/*
+
 SEXP run_model(SEXP nodes_sexp, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
 
   int iterations_ = Rcpp::as<int>(iterations);
@@ -96,9 +97,12 @@ SEXP run_model(SEXP nodes_sexp, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP 
   cppbugs::MCModel<boost::minstd_rand> m(nodes);
   m.sample(iterations_, burn_in_, adapt_, thin_);
   // walk the objects and append the histories as attributes
+  //appendHistory(contextMap, nodes_sexp, nodes);
+  for(auto n : nodes) { delete n; }
   return R_NilValue;
+
 }
-*/
+
 
 ArmaContext* mapToArma(contextMapT& m, SEXP x) {
   //void* ptr = static_cast<void*>(RAW(x));

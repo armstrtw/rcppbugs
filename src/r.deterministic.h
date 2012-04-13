@@ -81,7 +81,7 @@ namespace cppbugs {
       updateFromSEXP(Dynamic<T>::value,ans);
       UNPROTECT(1);
     }
-    ~RDeterministic() { Rprintf("~RDeterministic()"); UNPROTECT(1); }
+    ~RDeterministic() { UNPROTECT(1); }
 
     RDeterministic(T& value, SEXP fun, SEXP arg0): Dynamic<T>(value) {
       PROTECT(fo_ = Rf_lang2(fun, arg0));
