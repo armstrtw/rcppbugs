@@ -1,6 +1,8 @@
 useDynLib(RCppBugs)
 
-export(logp,
+export(show.addr,
+       create.model,
+       logp,
        run.model,
        deterministic,
        normal,

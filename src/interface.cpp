@@ -44,13 +44,29 @@ typedef std::map<void*,ArmaContext*> sexpArmaMapT;
 typedef std::map<void*,cppbugs::MCMCObject*> sexpMCMCMapT;
 
 extern "C" SEXP logp(SEXP x);
-extern "C" SEXP run_model(SEXP mcmc_nodes, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin);
+extern "C" SEXP getRawAddr(SEXP x);
+extern "C" SEXP attachArgs(SEXP args);
+extern "C" SEXP createModel(SEXP args_sexp);
+extern "C" SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin);
 ArmaContext* mapToArma(sexpArmaMapT& m, SEXP x);
 cppbugs::MCMCObject* createMCMC(sexpArmaMapT& m, SEXP x);
 cppbugs::MCMCObject* createNormal(sexpArmaMapT& m, SEXP x);
 cppbugs::MCMCObject* createUniform(sexpArmaMapT& m, SEXP x);
 cppbugs::MCMCObject* createDeterministic(sexpArmaMapT& m, SEXP x);
 void appendHistory(sexpMCMCMapT& mcmc_map, sexpArmaMapT& arma_map, SEXP x);
+
+SEXP getRawAddr(SEXP x) {
+  void* vp = rawAddress(x);
+  Rprintf("%p\n",vp);
+  return R_NilValue;
+}
+
+SEXP attachArgs(SEXP args) {
+  args = CDR(args); /* skip 'name' */
+  SEXP x = CAR(args); CDR(args);
+  Rf_setAttrib(x, Rf_install("args"), args);
+  return R_NilValue;
+}
 
 SEXP logp(SEXP x) {
   double ans = std::numeric_limits<double>::quiet_NaN();
@@ -81,47 +97,65 @@ void pmap(T& m) {
   }
 }
 
+class MCMCModelHolder {
+public:
+  ~MCMCModelHolder() {
+    for(auto n : nodes) { delete n; }
+  }
+  sexpArmaMapT armaContextMap;
+  sexpMCMCMapT mcmcContextMap;
+  std::vector<cppbugs::MCMCObject*> nodes;
+};
 
-SEXP run_model(SEXP nodes_sexp, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
+static void modelFinalizer(SEXP m_) {
+  MCMCModelHolder* m = reinterpret_cast<MCMCModelHolder*>(R_ExternalPtrAddr(m_));
+  if(m) {
+    delete m;
+    R_ClearExternalPtr(m_);
+  }
+}
+
+SEXP createModel(SEXP args_sexp) {
+  SEXP ans;
+  MCMCModelHolder* m = new MCMCModelHolder;
+  try {
+    //CDR(args_sexp); // function name
+    //for(R_len_t i = 0; i < Rf_length(args_sexp); i++) {
+    args_sexp = CDR(args_sexp); /* skip 'name' */
+    for(int i = 0; args_sexp != R_NilValue; i++, args_sexp = CDR(args_sexp)) {
+      SEXP this_sexp = CAR(args_sexp);
+      Rprintf("type %d\n",TYPEOF(this_sexp));
+      cppbugs::MCMCObject* this_node = createMCMC(m->armaContextMap,this_sexp);
+      m->mcmcContextMap[rawAddress(this_sexp)] = this_node;
+      m->nodes.push_back(this_node);
+    }
+  } catch (std::logic_error &e) {
+    REprintf("%s\n",e.what());
+    delete m;
+    return R_NilValue;
+  }
+  PROTECT(ans = R_MakeExternalPtr(reinterpret_cast<void*>(m),Rf_install("MCMCModelHolder"),R_NilValue));
+  R_RegisterCFinalizerEx(ans, modelFinalizer, TRUE);
+  UNPROTECT(1);
+  return ans;
+}
+
+SEXP run_model(SEXP mp_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
 
   int iterations_ = Rcpp::as<int>(iterations);
   int burn_in_ = Rcpp::as<int>(burn_in);
   int adapt_ = Rcpp::as<int>(adapt);
   int thin_ = Rcpp::as<int>(thin);
 
-  // this map prevents Arma objects from being created more than once as SEXP
-  // objects are mapped to arma objects (since the SEXP objects will be seen multiple times)
-  sexpArmaMapT armaContextMap;
-  sexpMCMCMapT mcmcContextMap;
-  std::vector<cppbugs::MCMCObject*> nodes;
+  MCMCModelHolder* mp = reinterpret_cast<MCMCModelHolder*>(R_ExternalPtrAddr(mp_));
+  if(!mp) { REprintf("bad model object.\n"); return R_NilValue; }
 
-  // attempt to catch object conversion errors
-  // i.e. mismatches between R types and arma types
   try {
-    for(R_len_t i = 0; i < Rf_length(nodes_sexp); i++) {
-      //Rprintf("init: %d\n",i);
-      //Rprintf("raw addr: %p\n",rawAddress(VECTOR_ELT(nodes_sexp,i)));
-      cppbugs::MCMCObject* this_node = createMCMC(armaContextMap,VECTOR_ELT(nodes_sexp,i));
-      //Rprintf("mcmc addr: %p\n",this_node);
-      mcmcContextMap[rawAddress(VECTOR_ELT(nodes_sexp,i))] = this_node;
-      //pmap(mcmcContextMap);
-      //Rprintf("init mapped: %d\n",mcmcContextMap.count(rawAddress(VECTOR_ELT(nodes_sexp,i))));
-      nodes.push_back(this_node);
-    }
-
-    cppbugs::MCModel<boost::minstd_rand> m(nodes);
+    cppbugs::MCModel<boost::minstd_rand> m(mp->nodes);
     m.sample(iterations_, burn_in_, adapt_, thin_);
-    // walk the objects and append the histories as attributes
-    for(R_len_t i = 0; i < Rf_length(nodes_sexp); i++) {
-      Rprintf("getHistory: %d\n",i);
-      appendHistory(mcmcContextMap, armaContextMap, VECTOR_ELT(nodes_sexp,i));
-    }
-    for(auto n : nodes) { delete n; }
-    Rf_setAttrib(nodes_sexp, Rf_install("history"), Rcpp::wrap(m.acceptance_ratio()));
-    return nodes_sexp;
+    return Rcpp::wrap(m.acceptance_ratio());
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
-    for(auto n : nodes) { delete n; }
     return R_NilValue;
   }
 }

@@ -15,15 +15,24 @@
 ## along with this program.  If not, see <http:##www.gnu.org#licenses#>. ##
 ###########################################################################
 
+show.addr <- function(x) {
+    .Call("getRawAddr",x,PACKAGE="RCppBugs")
+}
+
+attach.args <- function(...) {
+    .External("attachArgs",...,PACKAGE="RCppBugs")
+}
+
 logp <- function(x) {
     .Call("logp",x,PACKAGE="RCppBugs")
 }
 
-run.model <- function(..., iterations, burn, adapt, thin) {
-    obj.list <- list(...)
-    ##.Call("run_model", obj.list, iterations, burn, adapt, thin, rho, PACKAGE="RCppBugs")
-    .Call("run_model", obj.list, iterations, burn, adapt, thin, PACKAGE="RCppBugs")
-    browser()
+create.model <- function(...) {
+    .External("createModel",...,PACKAGE="RCppBugs")
+}
+
+run.model <- function(m, iterations, burn, adapt, thin) {
+    .Call("run_model", m, iterations, burn, adapt, thin, PACKAGE="RCppBugs")
 }
 
 deterministic <- function(f,...) {
@@ -34,7 +43,7 @@ deterministic <- function(f,...) {
     x <- do.call(f,args)
     attr(x,"distributed") <- "deterministic"
     attr(x,"fun") <- f
-    attr(x,"args") <- args
+    attach.args(x,...)
     x
 }
 
