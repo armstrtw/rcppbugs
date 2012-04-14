@@ -42,7 +42,6 @@
 // map of memory address of Robject underlying data (void*) to wrapped Arma object (ArmaContext*)
 typedef std::map<void*,ArmaContext*> sexpArmaMapT;
 typedef std::map<void*,cppbugs::MCMCObject*> sexpMCMCMapT;
-typedef std::vector<SEXP*> arglist;
 
 extern "C" SEXP logp(SEXP x);
 extern "C" SEXP getRawAddr(SEXP x);
@@ -56,18 +55,56 @@ cppbugs::MCMCObject* createUniform(sexpArmaMapT& m, SEXP x);
 cppbugs::MCMCObject* createDeterministic(sexpArmaMapT& m, SEXP x);
 void appendHistory(sexpMCMCMapT& mcmc_map, sexpArmaMapT& arma_map, SEXP x);
 
+class MCMCModelHolder {
+public:
+  ~MCMCModelHolder() {
+    for(auto n : nodes) { delete n; }
+  }
+  sexpArmaMapT armaContextMap;
+  sexpMCMCMapT mcmcContextMap;
+  std::vector<cppbugs::MCMCObject*> nodes;
+};
+
 SEXP getRawAddr(SEXP x) {
   void* vp = rawAddress(x);
   Rprintf("%p\n",vp);
   return R_NilValue;
 }
 
+
+static void modelFinalizer(SEXP m_) {
+  MCMCModelHolder* m = reinterpret_cast<MCMCModelHolder*>(R_ExternalPtrAddr(m_));
+  if(m) {
+    delete m;
+    R_ClearExternalPtr(m_);
+  }
+}
+
+static void arglistFinalizer(SEXP a_) {
+  arglistT* a = reinterpret_cast<arglistT*>(R_ExternalPtrAddr(a_));
+  if(a) {
+    delete a;
+    R_ClearExternalPtr(a_);
+  }
+}
+
 SEXP attachArgs(SEXP args) {
-  Rprintf("attachArgs\n");
   args = CDR(args); /* skip 'name' */
-  SEXP x = CAR(args); CDR(args);
-  Rf_setAttrib(x, Rf_install("args"), args);
-  Rprintf("done\n");
+
+  // pull off data object
+  SEXP x = CAR(args); args = CDR(args);
+  arglistT* arglist = new arglistT;
+
+  // loop through rest of args
+  for(; args != R_NilValue; args = CDR(args)) {
+    arglist->push_back(CAR(args));
+  }
+
+  SEXP arglist_;
+  PROTECT(arglist_ = R_MakeExternalPtr(reinterpret_cast<void*>(arglist),Rf_install("arglist"),R_NilValue));
+  R_RegisterCFinalizerEx(arglist_, arglistFinalizer, TRUE);
+  UNPROTECT(1);
+  Rf_setAttrib(x, Rf_install("args"), arglist_);
   return R_NilValue;
 }
 
@@ -97,24 +134,6 @@ template<typename T>
 void pmap(T& m) {
   for (typename T::iterator it=m.begin() ; it != m.end(); it++ ) {
     std::cout << it->first << "|" << it->second << std::endl;
-  }
-}
-
-class MCMCModelHolder {
-public:
-  ~MCMCModelHolder() {
-    for(auto n : nodes) { delete n; }
-  }
-  sexpArmaMapT armaContextMap;
-  sexpMCMCMapT mcmcContextMap;
-  std::vector<cppbugs::MCMCObject*> nodes;
-};
-
-static void modelFinalizer(SEXP m_) {
-  MCMCModelHolder* m = reinterpret_cast<MCMCModelHolder*>(R_ExternalPtrAddr(m_));
-  if(m) {
-    delete m;
-    R_ClearExternalPtr(m_);
   }
 }
 
@@ -225,29 +244,30 @@ cppbugs::MCMCObject* createDeterministic(sexpArmaMapT& m, SEXP x) {
 
   SEXP fun_sexp = Rf_getAttrib(x,Rf_install("fun"));
   SEXP args_sexp = Rf_getAttrib(x,Rf_install("args"));
-  Rprintf("args type: %d\n",TYPEOF(args_sexp));
-  if(args_sexp == R_NilValue) {
+
+  arglistT* args = reinterpret_cast<arglistT*>(R_ExternalPtrAddr(args_sexp));
+  if(!args) {
     throw std::logic_error("ERROR: args attribute not defined.");
   }
 
   // map to arma types
   ArmaContext* x_arma = mapToArma(m, x);
-  for(R_len_t i = 0; i < Rf_length(args_sexp); i++) {
-    if(TYPEOF(VECTOR_ELT(args_sexp,i)) != REALSXP && TYPEOF(VECTOR_ELT(args_sexp,i)) != INTSXP) {
+  for(size_t i = 0; i < args->size(); i++) {
+    if(TYPEOF(args->at(i)) != REALSXP && TYPEOF(args->at(i)) != INTSXP) {
       throw std::logic_error("ERROR: args must be int or real.");
     }
-    mapToArma(m, VECTOR_ELT(args_sexp,i));
+    mapToArma(m, args->at(i));
   }
 
   switch(x_arma->getArmaType()) {
   case doubleT:
-    ans = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_sexp,args_sexp);
+    ans = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_sexp,*args);
     break;
   case vecT:
-    ans = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_sexp,args_sexp);
+    ans = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_sexp,*args);
     break;
   case matT:
-    ans = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_sexp,args_sexp);
+    ans = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_sexp,*args);
     break;
   case intT:
   case ivecT:
@@ -271,6 +291,7 @@ cppbugs::MCMCObject* createNormal(sexpArmaMapT& m, SEXP x) {
 
   //bool observed = LOGICAL(observed_sexp)[0];
   bool observed = Rcpp::as<bool>(observed_sexp);
+  Rprintf("observed: %d\n",observed);
 
   // map to arma types
   ArmaContext* x_arma = mapToArma(m, x);

@@ -24,38 +24,14 @@
 #include <Rinternals.h>
 #include <cppbugs/mcmc.dynamic.hpp>
 
-
-/*
-double* memptr(double& x) {
-  return &x;
-}
-
-int* memptr(int& x) {
-  return &x;
-}
-
-double* memptr(vec& x) {
-  return x.memptr();
-}
-
-double* memptr(mat& x) {
-  return x.memptr();
-}
-
-int* memptr(ivec& x) {
-  return x.memptr();
-}
-
-int* memptr(imat& x) {
-  return x.memptr();
-}
-*/
+typedef std::vector<SEXP> arglistT;
 
 namespace cppbugs {
 
   template<typename T>
   class RDeterministic : public Dynamic<T> {
-    SEXP fo_;
+    SEXP fun_;
+    arglistT& args_;
 
     static void updateFromSEXP(double& dest, SEXP x) {
       dest = REAL(x)[0];
@@ -78,30 +54,26 @@ namespace cppbugs {
 
   public:
     void jump(RngBase& rng) {
-      SEXP ans;
-      //Dynamic<T>::value = as<typename T>::(eval(fo_, env_));
-      PROTECT(ans = Rf_eval(fo_, R_GlobalEnv));
-      //Rprintf("RDeterministic size: %d\n", Rf_length(ans));
+      SEXP r_call, ans;
+      switch(args_.size()) {
+      case 1:
+        PROTECT(r_call = Rf_lang2(fun_, args_[0]));
+        break;
+      case 2:
+        PROTECT(r_call = Rf_lang3(fun_, args_[0], args_[1]));
+        break;
+      case 3:
+        PROTECT(r_call = Rf_lang4(fun_, args_[0], args_[1], args_[2]));
+        break;
+      default:
+        throw std::logic_error("ERROR: too many arguments to deterministic function.");
+      }
+      PROTECT(ans = Rf_eval(r_call, R_GlobalEnv));
       updateFromSEXP(Dynamic<T>::value,ans);
-      UNPROTECT(1);
+      UNPROTECT(2);
     }
     ~RDeterministic() { UNPROTECT(1); }
-
-    RDeterministic(T& value, SEXP fun, SEXP arg0): Dynamic<T>(value) {
-      PROTECT(fo_ = Rf_lang2(fun, arg0));
-    }
-
-    RDeterministic(T& value, SEXP fun, SEXP arg0, SEXP arg1): Dynamic<T>(value) {
-      PROTECT(fo_ = Rf_lang3(fun, arg0, arg1));
-    }
-
-    RDeterministic(T& value, SEXP fun, SEXP arg0, SEXP arg1, SEXP arg2): Dynamic<T>(value) {
-      PROTECT(fo_ = Rf_lang4(fun, arg0, arg1, arg2));
-    }
-
-    RDeterministic(T& value, SEXP fun, SEXP arg0, SEXP arg1, SEXP arg2, SEXP arg3): Dynamic<T>(value) {
-      PROTECT(fo_ = Rf_lang5(fun, arg0, arg1, arg2, arg3));
-    }
+    RDeterministic(T& value, SEXP fun, arglistT& args): Dynamic<T>(value), fun_(fun), args_(args) {}
 
     void accept() {}
     void reject(){}

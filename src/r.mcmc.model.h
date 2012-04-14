@@ -54,7 +54,10 @@ namespace cppbugs {
     void addStochcasticNode(MCMCObject* node) {
       Stochastic* sp = dynamic_cast<Stochastic*>(node);
       // FIXME: this should throw if sp->getLikelihoodFunctor() returns null
-      if(sp && sp->getLikelihoodFunctor() ) { logp_functors.push_back(sp->getLikelihoodFunctor()); }
+      if(sp && sp->getLikelihoodFunctor() ) {
+        std::cout << "adding stochastic" << std::endl;
+        logp_functors.push_back(sp->getLikelihoodFunctor());
+      }
     }
 
     void initChain() {
