@@ -42,6 +42,7 @@
 // map of memory address of Robject underlying data (void*) to wrapped Arma object (ArmaContext*)
 typedef std::map<void*,ArmaContext*> sexpArmaMapT;
 typedef std::map<void*,cppbugs::MCMCObject*> sexpMCMCMapT;
+typedef std::vector<SEXP*> arglist;
 
 extern "C" SEXP logp(SEXP x);
 extern "C" SEXP getRawAddr(SEXP x);
@@ -62,9 +63,11 @@ SEXP getRawAddr(SEXP x) {
 }
 
 SEXP attachArgs(SEXP args) {
+  Rprintf("attachArgs\n");
   args = CDR(args); /* skip 'name' */
   SEXP x = CAR(args); CDR(args);
   Rf_setAttrib(x, Rf_install("args"), args);
+  Rprintf("done\n");
   return R_NilValue;
 }
 
@@ -222,7 +225,7 @@ cppbugs::MCMCObject* createDeterministic(sexpArmaMapT& m, SEXP x) {
 
   SEXP fun_sexp = Rf_getAttrib(x,Rf_install("fun"));
   SEXP args_sexp = Rf_getAttrib(x,Rf_install("args"));
-
+  Rprintf("args type: %d\n",TYPEOF(args_sexp));
   if(args_sexp == R_NilValue) {
     throw std::logic_error("ERROR: args attribute not defined.");
   }
@@ -238,48 +241,13 @@ cppbugs::MCMCObject* createDeterministic(sexpArmaMapT& m, SEXP x) {
 
   switch(x_arma->getArmaType()) {
   case doubleT:
-    switch(Rf_length(args_sexp)) {
-    case 1:
-      ans = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_sexp,VECTOR_ELT(args_sexp,0));
-      break;
-    case 2:
-      ans = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_sexp,VECTOR_ELT(args_sexp,0),VECTOR_ELT(args_sexp,1));
-      break;
-    case 3:
-      ans = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_sexp,VECTOR_ELT(args_sexp,0),VECTOR_ELT(args_sexp,1),VECTOR_ELT(args_sexp,2));
-      break;
-    default:
-      throw std::logic_error("ERROR: only 3 arguments supported for deterministic (for now).");
-    }
+    ans = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_sexp,args_sexp);
+    break;
   case vecT:
-    switch(Rf_length(args_sexp)) {
-    case 1:
-      ans = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_sexp,VECTOR_ELT(args_sexp,0));
-      break;
-    case 2:
-      ans = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_sexp,VECTOR_ELT(args_sexp,0),VECTOR_ELT(args_sexp,1));
-      break;
-    case 3:
-      ans = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_sexp,VECTOR_ELT(args_sexp,0),VECTOR_ELT(args_sexp,1),VECTOR_ELT(args_sexp,2));
-      break;
-    default:
-      throw std::logic_error("ERROR: only 3 arguments supported for deterministic (for now).");
-    }
+    ans = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_sexp,args_sexp);
     break;
   case matT:
-    switch(Rf_length(args_sexp)) {
-    case 1:
-      ans = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_sexp,VECTOR_ELT(args_sexp,0));
-      break;
-    case 2:
-      ans = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_sexp,VECTOR_ELT(args_sexp,0),VECTOR_ELT(args_sexp,1));
-      break;
-    case 3:
-      ans = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_sexp,VECTOR_ELT(args_sexp,0),VECTOR_ELT(args_sexp,1),VECTOR_ELT(args_sexp,2));
-      break;
-    default:
-      throw std::logic_error("ERROR: only 3 arguments supported for deterministic (for now).");
-    }
+    ans = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_sexp,args_sexp);
     break;
   case intT:
   case ivecT:
