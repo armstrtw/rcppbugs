@@ -43,12 +43,13 @@ namespace cppbugs {
     std::vector<Likelihiood*> logp_functors;
     //std::function<void ()> update;
     //vmc_map data_node_map;
-
+   
     void jump() { for(auto v : jumping_nodes) { v->jump(rng_); } }
     void preserve() { for(auto v : dynamic_nodes) { v->preserve(); } }
     void revert() { for(auto v : dynamic_nodes) { v->revert(); } }
     void set_scale(const double scale) { for(auto v : jumping_nodes) { v->setScale(scale); } }
     void tally() { for(auto v : dynamic_nodes) { v->tally(); } }
+    void print() { for(auto v : mcmcObjects_) { v->print(); } }
     static bool bad_logp(const double value) { return std::isnan(value) || value == -std::numeric_limits<double>::infinity() ? true : false; }
 
     void addStochcasticNode(MCMCObject* node) {
@@ -96,6 +97,9 @@ namespace cppbugs {
           it->jump(rng_);
           //update();
           logp_value = logp();
+          std::cout << "global logp: " << logp_value << std::endl;
+          //print();
+          //getchar();
           if(reject(logp_value, old_logp_value)) {
             it->revert();
             logp_value = old_logp_value;
@@ -122,6 +126,8 @@ namespace cppbugs {
         old_logp_value = logp_value;
         preserve();
         jump();
+        //print();
+        //getchar();
         //update();
         logp_value = logp();
         //std::cout << logp_value << std::endl;

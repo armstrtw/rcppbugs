@@ -48,7 +48,7 @@ std::vector<R_len_t> getDims(SEXP x) {
       ans.push_back(INTEGER(dims)[i]);
     }
   }
-  Rprintf("dim size: %d\n",ans.size());
+  //Rprintf("dim size: %d\n",ans.size());
   return ans;
 }
 

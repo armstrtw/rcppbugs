@@ -45,6 +45,7 @@ typedef std::map<void*,cppbugs::MCMCObject*> sexpMCMCMapT;
 
 extern "C" SEXP logp(SEXP x);
 extern "C" SEXP getRawAddr(SEXP x);
+extern "C" SEXP testAttrAdd(SEXP x);
 extern "C" SEXP attachArgs(SEXP args);
 extern "C" SEXP createModel(SEXP args_sexp);
 extern "C" SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin);
@@ -68,6 +69,15 @@ public:
 SEXP getRawAddr(SEXP x) {
   void* vp = rawAddress(x);
   Rprintf("%p\n",vp);
+  return R_NilValue;
+}
+
+SEXP testAttrAdd(SEXP x) {
+  SEXP attr;
+  PROTECT(attr = Rf_allocVector(REALSXP, 1));
+  REAL(attr)[0] = 100;
+  Rf_setAttrib(x, Rf_install("test.atty"), attr);
+  UNPROTECT(1);
   return R_NilValue;
 }
 
@@ -146,8 +156,11 @@ SEXP createModel(SEXP args_sexp) {
     args_sexp = CDR(args_sexp); /* skip 'name' */
     for(int i = 0; args_sexp != R_NilValue; i++, args_sexp = CDR(args_sexp)) {
       SEXP this_sexp = CAR(args_sexp);
+      Rprintf("adding object: %p\n",rawAddress(this_sexp));
       Rprintf("type %d\n",TYPEOF(this_sexp));
       cppbugs::MCMCObject* this_node = createMCMC(m->armaContextMap,this_sexp);
+      pmap(m->armaContextMap);
+      Rprintf("done adding\n");
       m->mcmcContextMap[rawAddress(this_sexp)] = this_node;
       m->nodes.push_back(this_node);
     }
@@ -241,6 +254,7 @@ cppbugs::MCMCObject* createMCMC(sexpArmaMapT& m, SEXP x) {
 
 cppbugs::MCMCObject* createDeterministic(sexpArmaMapT& m, SEXP x) {
   cppbugs::MCMCObject* ans(NULL);
+  void* vp = rawAddress(x); Rprintf("deterministic addr: %p\n",vp);
 
   SEXP fun_sexp = Rf_getAttrib(x,Rf_install("fun"));
   SEXP args_sexp = Rf_getAttrib(x,Rf_install("args"));
@@ -295,7 +309,7 @@ cppbugs::MCMCObject* createNormal(sexpArmaMapT& m, SEXP x) {
 
   // map to arma types
   ArmaContext* x_arma = mapToArma(m, x);
-  ArmaContext* mu_arma = mapToArma(m, mu_sexp);
+  ArmaContext* mu_arma = mapToArma(m, mu_sexp); void* vp = rawAddress(mu_sexp); Rprintf("mu addr: %p\n",vp);
   ArmaContext* tau_arma = mapToArma(m, tau_sexp);
 
   switch(x_arma->getArmaType()) {

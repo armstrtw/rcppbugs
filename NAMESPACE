@@ -1,6 +1,7 @@
 useDynLib(RCppBugs)
 
 export(show.addr,
+       attr.add,
        create.model,
        logp,
        run.model,

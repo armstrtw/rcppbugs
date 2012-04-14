@@ -19,6 +19,10 @@ show.addr <- function(x) {
     .Call("getRawAddr",x,PACKAGE="RCppBugs")
 }
 
+attr.add <- function(x) {
+    .Call("testAttrAdd",x,PACKAGE="RCppBugs")
+}
+
 attach.args <- function(...) {
     .External("attachArgs",...,PACKAGE="RCppBugs")
 }

@@ -21,6 +21,7 @@
 
 //#include <R.h>
 //#include <Rdefines.h>
+#include <iostream>
 #include <Rinternals.h>
 #include <cppbugs/mcmc.dynamic.hpp>
 
@@ -50,6 +51,7 @@ namespace cppbugs {
     static void updateFromSEXP(arma::mat& dest, SEXP x) {
       //Rprintf("dest size: %d\n",dest.n_elem);
       memcpy(dest.memptr(),REAL(x),sizeof(double)*dest.n_elem);
+      std::cout << "address of updated mat:" << &dest << std::endl;
     }
 
   public:
@@ -71,6 +73,7 @@ namespace cppbugs {
       PROTECT(ans = Rf_eval(r_call, R_GlobalEnv));
       updateFromSEXP(Dynamic<T>::value,ans);
       UNPROTECT(2);
+      std::cout << "RDeterministic new value:"  << std::endl << Dynamic<T>::value << std::endl;
     }
     ~RDeterministic() { UNPROTECT(1); }
     RDeterministic(T& value, SEXP fun, arglistT& args): Dynamic<T>(value), fun_(fun), args_(args) {}
