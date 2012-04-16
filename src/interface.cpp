@@ -144,6 +144,8 @@ SEXP logp(SEXP x) {
 }
 
 SEXP jump(SEXP x) {
+  static cppbugs::SpecializedRng<boost::minstd_rand> rng;
+
   cppbugs::MCMCObject* node(NULL);
   try {
     node = getMCMC(x);
@@ -151,7 +153,6 @@ SEXP jump(SEXP x) {
     REprintf("%s\n",e.what());
     return R_NilValue;
   }
-  cppbugs::SpecializedRng<boost::minstd_rand> rng;
   node->jump(rng);
   return R_NilValue;
 }
