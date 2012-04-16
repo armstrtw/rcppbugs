@@ -1,6 +1,9 @@
 useDynLib(RCppBugs)
 
 export(show.addr,
+       mod.mem,
+       create.ref,
+       get.ref,
        create.model,
        logp,
        jump,

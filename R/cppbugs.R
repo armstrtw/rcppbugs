@@ -19,6 +19,18 @@ show.addr <- function(x) {
     invisible(.Call("getRawAddr",x,PACKAGE="RCppBugs"))
 }
 
+mod.mem <- function(x) {
+    invisible(.Call("modmem",x,PACKAGE="RCppBugs"))
+}
+
+create.ref <- function(x) {
+    .Call("createRef",x,PACKAGE="RCppBugs")
+}
+
+get.ref <- function(x) {
+    .Call("getRef",x,PACKAGE="RCppBugs")
+}
+
 logp <- function(x) {
     .Call("logp",x,PACKAGE="RCppBugs")
 }
@@ -43,18 +55,35 @@ run.model <- function(m, iterations, burn, adapt, thin) {
     .Call("run_model", m, iterations, burn, adapt, thin, PACKAGE="RCppBugs")
 }
 
-deterministic <- function(...) {
-    .External("createDeterministic",...,PACKAGE="RCppBugs")
+attach.args <- function(...) {
+    .External("attachArgs",...,PACKAGE="RCppBugs")
+}
+
+deterministic <- function(f,...) {
+    mc <- match.call()
+    ## capture shape/type of result
+    x <- do.call(f,list(...))
+    attr(x,"distributed") <- "deterministic"
+    attr(x,"update.method") <- f
+    attach.args(x,...)
+    x
 }
 
 normal <- function(x,mu,tau,observed=FALSE) {
-    .Call("createNormal",x,mu,tau,observed,PACKAGE="RCppBugs")
+    attr(x,"distributed") <- "normal"
+    attr(x,"mu") <- substitute(mu)
+    attr(x,"tau") <- substitute(tau)
+    attr(x,"observed") <- observed
+    x
 }
 
 uniform <- function(x,lower,upper,observed=FALSE) {
-    .Call("createUniform",x,lower,upper,observed,PACKAGE="RCppBugs")
+    attr(x,"distributed") <- "uniform"
+    attr(x,"lower") <- substitute(lower)
+    attr(x,"upper") <- substitute(upper)
+    attr(x,"observed") <- observed
+    x
 }
-
 
 get.history <- function(x) {
     .Call("getHist",x,PACKAGE="RCppBugs")
