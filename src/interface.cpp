@@ -31,6 +31,7 @@
 #include <cppbugs/mcmc.bernoulli.hpp>
 //#include "interface.h"
 #include "helpers.h"
+#include "finalizers.h"
 #include "raw.address.h"
 #include "distribution.types.h"
 #include "arma.context.h"
@@ -39,32 +40,26 @@
 #include "r.deterministic.h"
 #include "r.mcmc.model.h"
 
-// map of memory address of Robject underlying data (void*) to wrapped Arma object (ArmaContext*)
-typedef std::map<void*,ArmaContext*> sexpArmaMapT;
-typedef std::map<void*,cppbugs::MCMCObject*> sexpMCMCMapT;
-
-extern "C" SEXP logp(SEXP x);
+// public interface
 extern "C" SEXP getRawAddr(SEXP x);
-extern "C" SEXP testAttrAdd(SEXP x);
-extern "C" SEXP attachArgs(SEXP args);
+extern "C" SEXP logp(SEXP x);
+extern "C" SEXP jump(SEXP x);
+extern "C" SEXP printArma(SEXP x);
+extern "C" SEXP printMCMC(SEXP x);
 extern "C" SEXP createModel(SEXP args_sexp);
-extern "C" SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin);
-ArmaContext* mapToArma(sexpArmaMapT& m, SEXP x);
-cppbugs::MCMCObject* createMCMC(sexpArmaMapT& m, SEXP x);
-cppbugs::MCMCObject* createNormal(sexpArmaMapT& m, SEXP x);
-cppbugs::MCMCObject* createUniform(sexpArmaMapT& m, SEXP x);
-cppbugs::MCMCObject* createDeterministic(sexpArmaMapT& m, SEXP x);
-void appendHistory(sexpMCMCMapT& mcmc_map, sexpArmaMapT& arma_map, SEXP x);
+extern "C" SEXP run_model(SEXP mp_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin);
+extern "C" SEXP createDeterministic(SEXP args_);
+extern "C" SEXP createNormal(SEXP x_, SEXP mu_, SEXP tau_, SEXP observed_);
+extern "C" SEXP createUniform(SEXP x_, SEXP lower_, SEXP upper_, SEXP observed_);
+extern "C" SEXP getHist(SEXP x);
 
-class MCMCModelHolder {
-public:
-  ~MCMCModelHolder() {
-    for(auto n : nodes) { delete n; }
-  }
-  sexpArmaMapT armaContextMap;
-  sexpMCMCMapT mcmcContextMap;
-  std::vector<cppbugs::MCMCObject*> nodes;
-};
+
+// private methods
+void* getExternalPointer(SEXP p_);
+void* getExternalPointerAttribute(SEXP x_, const char* attyName);
+ArmaContext* getArma(SEXP x);
+cppbugs::MCMCObject* getMCMC(SEXP x_);
+void setMCMC(SEXP x_, cppbugs::MCMCObject* p);
 
 SEXP getRawAddr(SEXP x) {
   void* vp = rawAddress(x);
@@ -72,34 +67,44 @@ SEXP getRawAddr(SEXP x) {
   return R_NilValue;
 }
 
-SEXP testAttrAdd(SEXP x) {
-  SEXP attr;
-  PROTECT(attr = Rf_allocVector(REALSXP, 1));
-  REAL(attr)[0] = 100;
-  Rf_setAttrib(x, Rf_install("test.atty"), attr);
-  UNPROTECT(1);
-  return R_NilValue;
+static void armaContextFinalizer(SEXP a_) {
+  finalizeSEXP<ArmaContext>(a_);
 }
-
 
 static void modelFinalizer(SEXP m_) {
-  MCMCModelHolder* m = reinterpret_cast<MCMCModelHolder*>(R_ExternalPtrAddr(m_));
-  if(m) {
-    delete m;
-    R_ClearExternalPtr(m_);
-  }
+  finalizeSEXP<cppbugs::MCModel<boost::minstd_rand> >(m_);
 }
 
+/*
 static void arglistFinalizer(SEXP a_) {
-  arglistT* a = reinterpret_cast<arglistT*>(R_ExternalPtrAddr(a_));
-  if(a) {
-    delete a;
-    R_ClearExternalPtr(a_);
-  }
+  finalizeSEXP<arglistT>(a_);
+}
+*/
+
+static void mcmcObjectFinalizer(SEXP o_) {
+  finalizeSEXP<cppbugs::MCMCObject>(o_);
 }
 
+
+void* getExternalPointer(SEXP p_) {
+  if(p_ == R_NilValue) {
+    throw std::logic_error("ERROR: invalid external pointer SEXP object.\n");
+  }
+  void* p = R_ExternalPtrAddr(p_);
+  if(!p) {
+    throw std::logic_error("ERROR: bad pointer conversion.\n");
+  }
+  return p;
+}
+
+void* getExternalPointerAttribute(SEXP x_, const char* attyName) {
+  SEXP p_ = Rf_getAttrib(x_, Rf_install(attyName));
+  return getExternalPointer(p_);
+}
+
+/*
 SEXP attachArgs(SEXP args) {
-  args = CDR(args); /* skip 'name' */
+  args = CDR(args); // skip 'name'
 
   // pull off data object
   SEXP x = CAR(args); args = CDR(args);
@@ -117,16 +122,15 @@ SEXP attachArgs(SEXP args) {
   Rf_setAttrib(x, Rf_install("args"), arglist_);
   return R_NilValue;
 }
+*/
 
 SEXP logp(SEXP x) {
   double ans = std::numeric_limits<double>::quiet_NaN();
-  sexpArmaMapT m;
   cppbugs::MCMCObject* node(NULL);
   try {
-    node = createMCMC(m, x);
+    node = getMCMC(x);
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
-    delete node;
     return R_NilValue;
   }
 
@@ -136,77 +140,103 @@ SEXP logp(SEXP x) {
   } else {
     REprintf("ERROR: could not convert node to stochastic.\n");
   }
-  delete node;
   return Rcpp::wrap(ans);
 }
 
-template<typename T>
-void pmap(T& m) {
-  for (typename T::iterator it=m.begin() ; it != m.end(); it++ ) {
-    std::cout << it->first << "|" << it->second << std::endl;
+SEXP jump(SEXP x) {
+  cppbugs::MCMCObject* node(NULL);
+  try {
+    node = getMCMC(x);
+  } catch (std::logic_error &e) {
+    REprintf("%s\n",e.what());
+    return R_NilValue;
   }
+  cppbugs::SpecializedRng<boost::minstd_rand> rng;
+  node->jump(rng);
+  return R_NilValue;
+}
+
+SEXP printMCMC(SEXP x) {
+  cppbugs::MCMCObject* node(NULL);
+  try {
+    node = getMCMC(x);
+    node->print();
+  } catch (std::logic_error &e) {
+    REprintf("%s\n",e.what());
+    return R_NilValue;
+  }
+  return R_NilValue;
+}
+
+SEXP printArma(SEXP x) {
+  ArmaContext* node(NULL);
+  try {
+    node = getArma(x);
+    node->print();
+  } catch (std::logic_error &e) {
+    REprintf("%s\n",e.what());
+    return R_NilValue;
+  }
+  return R_NilValue;
 }
 
 SEXP createModel(SEXP args_sexp) {
-  SEXP ans;
-  MCMCModelHolder* m = new MCMCModelHolder;
+  std::vector<cppbugs::MCMCObject*> mcmcObjects;
   try {
     //CDR(args_sexp); // function name
     //for(R_len_t i = 0; i < Rf_length(args_sexp); i++) {
     args_sexp = CDR(args_sexp); /* skip 'name' */
     for(int i = 0; args_sexp != R_NilValue; i++, args_sexp = CDR(args_sexp)) {
       SEXP this_sexp = CAR(args_sexp);
-      Rprintf("adding object: %p\n",rawAddress(this_sexp));
-      Rprintf("type %d\n",TYPEOF(this_sexp));
-      cppbugs::MCMCObject* this_node = createMCMC(m->armaContextMap,this_sexp);
-      pmap(m->armaContextMap);
-      Rprintf("done adding\n");
-      m->mcmcContextMap[rawAddress(this_sexp)] = this_node;
-      m->nodes.push_back(this_node);
+      mcmcObjects.push_back(getMCMC(this_sexp));      
     }
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
-    delete m;
     return R_NilValue;
   }
-  PROTECT(ans = R_MakeExternalPtr(reinterpret_cast<void*>(m),Rf_install("MCMCModelHolder"),R_NilValue));
-  R_RegisterCFinalizerEx(ans, modelFinalizer, TRUE);
-  UNPROTECT(1);
-  return ans;
+  cppbugs::MCModel<boost::minstd_rand>* m = new cppbugs::MCModel<boost::minstd_rand>(mcmcObjects);
+  return createExternalPoniter(m, modelFinalizer, "cppbugs::MCModel<boost::minstd_rand>*");
 }
 
-SEXP run_model(SEXP mp_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
+SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
 
   int iterations_ = Rcpp::as<int>(iterations);
   int burn_in_ = Rcpp::as<int>(burn_in);
   int adapt_ = Rcpp::as<int>(adapt);
   int thin_ = Rcpp::as<int>(thin);
 
-  MCMCModelHolder* mp = reinterpret_cast<MCMCModelHolder*>(R_ExternalPtrAddr(mp_));
-  if(!mp) { REprintf("bad model object.\n"); return R_NilValue; }
-
   try {
-    cppbugs::MCModel<boost::minstd_rand> m(mp->nodes);
-    m.sample(iterations_, burn_in_, adapt_, thin_);
-    return Rcpp::wrap(m.acceptance_ratio());
+    cppbugs::MCModel<boost::minstd_rand>* m = reinterpret_cast<cppbugs::MCModel<boost::minstd_rand>* >(getExternalPointer(m_));
+    m->sample(iterations_, burn_in_, adapt_, thin_);
+    return Rcpp::wrap(m->acceptance_ratio());
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
     return R_NilValue;
   }
 }
 
-ArmaContext* mapToArma(sexpArmaMapT& m, SEXP x) {
-  //void* ptr = static_cast<void*>(RAW(x));
-  void* ptr = rawAddress(x);
+/*
+void addArmaContext(SEXP x, ArmaContext* ap) {
+  PROTECT(ap_ = R_MakeExternalPtr(reinterpret_cast<void*>(ap),Rf_install("ArmaContext*"),R_NilValue));
+  R_RegisterCFinalizerEx(ap_, armaContextFinalizer, TRUE);
+  Rf_setAttrib(x, Rf_install("armaContext"), ap_);
+  UNPROTECT(1);
+}
+*/
 
-  // if node is mapped, just return mapped pointer
-  if(!m.count(ptr)) {
-    switch(TYPEOF(x)) {
+// adds an armaContext external pointer if it does not exist
+ArmaContext* getArma(SEXP x_) {
+  ArmaContext* ap;
+  SEXP arma_ctx_ = Rf_getAttrib(x_, Rf_install("armaContext"));
+  if(arma_ctx_ != R_NilValue) {
+    ap = reinterpret_cast<ArmaContext*>(R_ExternalPtrAddr(arma_ctx_));
+  } else {
+    switch(TYPEOF(x_)) {
     case REALSXP:
-      switch(getDims(x).size()) {
-      case 0: m[ptr] = new ArmaDouble(x); break;
-      case 1: m[ptr] = new ArmaVec(x); break;
-      case 2: m[ptr] = new ArmaMat(x); break;
+      switch(getDims(x_).size()) {
+      case 0: ap = new ArmaDouble(x_); break;
+      case 1: ap = new ArmaVec(x_); break;
+      case 2: ap = new ArmaMat(x_); break;
       default:
         throw std::logic_error("ERROR: tensor conversion not supported yet.");
       }
@@ -217,121 +247,116 @@ ArmaContext* mapToArma(sexpArmaMapT& m, SEXP x) {
       break;
     default:
       throw std::logic_error("ERROR: conversion not supported.");
-    }
+    }   
+    Rf_setAttrib(x_, Rf_install("armaContext"), createExternalPoniter(ap, armaContextFinalizer, "ArmaContext*"));
   }
-  return m[ptr];
+  return ap;
 }
 
-cppbugs::MCMCObject* createMCMC(sexpArmaMapT& m, SEXP x) {
-  SEXP distributed_sexp;
-  distributed_sexp = Rf_getAttrib(x,Rf_install("distributed"));
-  if(distributed_sexp == R_NilValue) {
-    throw std::logic_error("ERROR: 'distributed' attribute not defined. Is this a stochastic variable?");
+// unlike getArma, this throws if MCMC external pointer is not found
+cppbugs::MCMCObject* getMCMC(SEXP x_) {
+  cppbugs::MCMCObject* p(NULL);
+  try {
+    p = reinterpret_cast<cppbugs::MCMCObject*>(getExternalPointerAttribute(x_, "mcmc_ptr"));
+  } catch(std::logic_error &e) {
+    REprintf("%s\n",e.what());
   }
-  distT distributed = matchDistibution(std::string(CHAR(STRING_ELT(distributed_sexp,0))));
-
-  cppbugs::MCMCObject* ans;
-
-  switch(distributed) {
-  case deterministicT:
-    ans = createDeterministic(m, x);
-    break;
-  case normalDistT:
-    ans = createNormal(m, x);
-    break;
-  case uniformDistT:
-    ans = createUniform(m, x);
-    break;
-  case gammaDistT:
-  case betaDistT:
-  case binomialDistT:
-  default:
-    ans = NULL;
-    throw std::logic_error("ERROR: distribution not supported yet.");
-  }
-  return ans;
+  return p;
 }
 
-cppbugs::MCMCObject* createDeterministic(sexpArmaMapT& m, SEXP x) {
-  cppbugs::MCMCObject* ans(NULL);
-  void* vp = rawAddress(x); Rprintf("deterministic addr: %p\n",vp);
+void setMCMC(SEXP x_, cppbugs::MCMCObject* p) {
+  Rf_setAttrib(x_, Rf_install("mcmc_ptr"), createExternalPoniter(p, mcmcObjectFinalizer, "cppbugs::MCMCObject*"));
+}
 
-  SEXP fun_sexp = Rf_getAttrib(x,Rf_install("fun"));
-  SEXP args_sexp = Rf_getAttrib(x,Rf_install("args"));
+SEXP createDeterministic(SEXP args_) {
+  cppbugs::MCMCObject* p;
 
-  arglistT* args = reinterpret_cast<arglistT*>(R_ExternalPtrAddr(args_sexp));
-  if(!args) {
-    throw std::logic_error("ERROR: args attribute not defined.");
+  // function should be in position 1 (excluding fun/call name)
+  args_ = CDR(args_); /* skip 'name' */
+  SEXP fun_ = CAR(args_); args_ = CDR(args_);
+
+  if(TYPEOF(fun_) != CLOSXP) {
+    REprintf("ERROR: first argument must be a function.");
+    return R_NilValue;
   }
+
+  // rest of params shoudl be function args
+  arglistT arglist;
+
+  // loop through rest of args
+  for(; args_ != R_NilValue; args_ = CDR(args_)) {
+    arglist.push_back(CAR(args_));
+  }
+
+  // evaluate function call
+  // the evaluation result becomes the new deterministic object
+  SEXP x_;
+  PROTECT(x_ = cppbugs::RDeterministic<double>::do_funcall(fun_, arglist));
+  Rprintf("x addr: %p\n",rawAddress(x_));
 
   // map to arma types
-  ArmaContext* x_arma = mapToArma(m, x);
-  for(size_t i = 0; i < args->size(); i++) {
-    if(TYPEOF(args->at(i)) != REALSXP && TYPEOF(args->at(i)) != INTSXP) {
-      throw std::logic_error("ERROR: args must be int or real.");
+  ArmaContext* x_arma = getArma(x_);
+  try {
+    switch(x_arma->getArmaType()) {
+    case doubleT:
+      p = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_,arglist);
+      break;
+    case vecT:
+      p = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_,arglist);
+      break;
+    case matT:
+      p = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_,arglist);
+      break;
+    case intT:
+    case ivecT:
+    case imatT:
+    default:
+      throw std::logic_error("ERROR: deterministic must be a continuous variable type (double, vec, or mat) for now (under development).");
     }
-    mapToArma(m, args->at(i));
+  } catch(std::logic_error &e) {
+    REprintf("%s\n",e.what());
+    return R_NilValue;
   }
-
-  switch(x_arma->getArmaType()) {
-  case doubleT:
-    ans = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_sexp,*args);
-    break;
-  case vecT:
-    ans = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_sexp,*args);
-    break;
-  case matT:
-    ans = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_sexp,*args);
-    break;
-  case intT:
-  case ivecT:
-  case imatT:
-  default:
-    throw std::logic_error("ERROR: deterministic must be a continuous variable type (double, vec, or mat) for now (under development).");
-  }
-  return ans;
+  setMCMC(x_, p);
+  UNPROTECT(1);
+  return x_;
 }
 
-cppbugs::MCMCObject* createNormal(sexpArmaMapT& m, SEXP x) {
-  cppbugs::MCMCObject* ans;
+SEXP createNormal(SEXP x_, SEXP mu_, SEXP tau_, SEXP observed_) {
+  cppbugs::MCMCObject* p;
 
-  SEXP mu_sexp = Rf_getAttrib(x,Rf_install("mu"));
-  SEXP tau_sexp = Rf_getAttrib(x,Rf_install("tau"));
-  SEXP observed_sexp = Rf_getAttrib(x,Rf_install("observed"));
-
-  if(mu_sexp == R_NilValue || tau_sexp == R_NilValue || observed_sexp == R_NilValue) {
-    throw std::logic_error("ERROR: needed attribute not defined.");
+  if(mu_ == R_NilValue || tau_ == R_NilValue || observed_ == R_NilValue) {
+    REprintf("ERROR: missing argument.");
+    return R_NilValue;
   }
 
-  //bool observed = LOGICAL(observed_sexp)[0];
-  bool observed = Rcpp::as<bool>(observed_sexp);
-  Rprintf("observed: %d\n",observed);
+  bool observed = Rcpp::as<bool>(observed_);
 
   // map to arma types
-  ArmaContext* x_arma = mapToArma(m, x);
-  ArmaContext* mu_arma = mapToArma(m, mu_sexp); void* vp = rawAddress(mu_sexp); Rprintf("mu addr: %p\n",vp);
-  ArmaContext* tau_arma = mapToArma(m, tau_sexp);
+  ArmaContext* x_arma = getArma(x_); Rprintf("x addr: %p\n",rawAddress(x_));
+  ArmaContext* mu_arma = getArma(mu_);  Rprintf("mu addr: %p\n",rawAddress(mu_));
+  ArmaContext* tau_arma = getArma(tau_); Rprintf("tau addr: %p\n",rawAddress(tau_));
 
   switch(x_arma->getArmaType()) {
   case doubleT:
     if(observed) {
-      ans = assignNormalLogp<cppbugs::ObservedNormal>(x_arma->getDouble(),mu_arma,tau_arma);
+      p = assignNormalLogp<cppbugs::ObservedNormal>(x_arma->getDouble(),mu_arma,tau_arma);
     } else {
-      ans = assignNormalLogp<cppbugs::Normal>(x_arma->getDouble(),mu_arma,tau_arma);
+      p = assignNormalLogp<cppbugs::Normal>(x_arma->getDouble(),mu_arma,tau_arma);
     }
     break;
   case vecT:
     if(observed) {
-      ans = assignNormalLogp<cppbugs::ObservedNormal>(x_arma->getVec(),mu_arma,tau_arma);
+      p = assignNormalLogp<cppbugs::ObservedNormal>(x_arma->getVec(),mu_arma,tau_arma);
     } else {
-      ans = assignNormalLogp<cppbugs::Normal>(x_arma->getVec(),mu_arma,tau_arma);
+      p = assignNormalLogp<cppbugs::Normal>(x_arma->getVec(),mu_arma,tau_arma);
     }
     break;
   case matT:
     if(observed) {
-      ans = assignNormalLogp<cppbugs::ObservedNormal>(x_arma->getMat(),mu_arma,tau_arma);
+      p = assignNormalLogp<cppbugs::ObservedNormal>(x_arma->getMat(),mu_arma,tau_arma);
     } else {
-      ans = assignNormalLogp<cppbugs::Normal>(x_arma->getMat(),mu_arma,tau_arma);
+      p = assignNormalLogp<cppbugs::Normal>(x_arma->getMat(),mu_arma,tau_arma);
     }
     break;
   case intT:
@@ -340,48 +365,48 @@ cppbugs::MCMCObject* createNormal(sexpArmaMapT& m, SEXP x) {
   default:
     throw std::logic_error("ERROR: normal must be a continuous variable type (double, vec, or mat).");
   }
-  return ans;
+  setMCMC(x_, p);
+  getRawAddr(x_);
+  return x_;
 }
 
-cppbugs::MCMCObject* createUniform(sexpArmaMapT& m, SEXP x) {
-  cppbugs::MCMCObject* ans;
+SEXP createUniform(SEXP x_, SEXP lower_, SEXP upper_, SEXP observed_) {
+  cppbugs::MCMCObject* p;
 
-  SEXP lower_sexp = Rf_getAttrib(x,Rf_install("lower"));
-  SEXP upper_sexp = Rf_getAttrib(x,Rf_install("upper"));
-  SEXP observed_sexp = Rf_getAttrib(x,Rf_install("observed"));
+  Rprintf("x addr: %p\n",rawAddress(x_));
 
-  if(lower_sexp == R_NilValue || upper_sexp == R_NilValue || observed_sexp == R_NilValue) {
-    throw std::logic_error("ERROR: needed attribute not defined.");
+  if(lower_ == R_NilValue || upper_ == R_NilValue || observed_ == R_NilValue) {
+    REprintf("ERROR: missing argument.");
+    return R_NilValue;
   }
 
-  //bool observed = LOGICAL(observed_sexp)[0];
-  bool observed = Rcpp::as<bool>(observed_sexp);
+  bool observed = Rcpp::as<bool>(observed_);
 
   // map to arma types
-  ArmaContext* x_arma = mapToArma(m, x);
-  ArmaContext* lower_arma = mapToArma(m, lower_sexp);
-  ArmaContext* upper_arma = mapToArma(m, upper_sexp);
+  ArmaContext* x_arma = getArma(x_);
+  ArmaContext* lower_arma = getArma(lower_);
+  ArmaContext* upper_arma = getArma(upper_);
 
   switch(x_arma->getArmaType()) {
   case doubleT:
     if(observed) {
-      ans = assignUniformLogp<cppbugs::ObservedUniform>(x_arma->getDouble(),lower_arma,upper_arma);
+      p = assignUniformLogp<cppbugs::ObservedUniform>(x_arma->getDouble(),lower_arma,upper_arma);
     } else {
-      ans = assignUniformLogp<cppbugs::Uniform>(x_arma->getDouble(),lower_arma,upper_arma);
+      p = assignUniformLogp<cppbugs::Uniform>(x_arma->getDouble(),lower_arma,upper_arma);
     }
     break;
   case vecT:
     if(observed) {
-      ans = assignUniformLogp<cppbugs::ObservedUniform>(x_arma->getVec(),lower_arma,upper_arma);
+      p = assignUniformLogp<cppbugs::ObservedUniform>(x_arma->getVec(),lower_arma,upper_arma);
     } else {
-      ans = assignUniformLogp<cppbugs::Uniform>(x_arma->getVec(),lower_arma,upper_arma);
+      p = assignUniformLogp<cppbugs::Uniform>(x_arma->getVec(),lower_arma,upper_arma);
     }
     break;
   case matT:
     if(observed) {
-      ans = assignUniformLogp<cppbugs::ObservedUniform>(x_arma->getMat(),lower_arma,upper_arma);
+      p = assignUniformLogp<cppbugs::ObservedUniform>(x_arma->getMat(),lower_arma,upper_arma);
     } else {
-      ans = assignUniformLogp<cppbugs::Uniform>(x_arma->getMat(),lower_arma,upper_arma);
+      p = assignUniformLogp<cppbugs::Uniform>(x_arma->getMat(),lower_arma,upper_arma);
     }
     break;
   case intT:
@@ -390,8 +415,10 @@ cppbugs::MCMCObject* createUniform(sexpArmaMapT& m, SEXP x) {
   default:
     throw std::logic_error("ERROR: uniform must be a continuous variable type (double, vec, or mat).");
   }
-  return ans;
+  setMCMC(x_, p);
+  return x_;
 }
+
 
 template<typename T>
 SEXP getHistory(cppbugs::MCMCObject* node) {
@@ -456,6 +483,45 @@ template<> SEXP getHistory<double>(cppbugs::MCMCObject* node) {
   return Rcpp::wrap(ans);
 }
 
+
+SEXP getHist(SEXP x_) {
+  SEXP ans;
+  ArmaContext* ap(NULL);
+  cppbugs::MCMCObject* node(NULL);
+  try {
+    ap = getArma(x_);
+    node = getMCMC(x_);
+  } catch (std::logic_error &e) {
+    REprintf("%s\n",e.what());
+    return R_NilValue;
+  }
+
+  try {
+    switch(ap->getArmaType()) {
+    case doubleT:
+      PROTECT(ans = getHistory<double>(node));
+      break;
+    case vecT:
+      PROTECT(ans = getHistory<arma::vec>(node));
+      break;
+    case matT:
+      PROTECT(ans = getHistory<arma::mat>(node));
+      break;
+    case intT:
+    case ivecT:
+    case imatT:
+    default:
+      throw std::logic_error("ERROR: history conversion not supported for this type.");
+    }
+  } catch (std::logic_error &e) {
+    REprintf("%s\n",e.what());
+    return R_NilValue;
+  }
+  UNPROTECT(1);
+  return Rcpp::wrap(ans);
+}
+
+/*
 void appendHistory(sexpMCMCMapT& mcmc_map, sexpArmaMapT& arma_map, SEXP x) {
   SEXP ans;
   void* sexp_data_ptr = rawAddress(x);
@@ -491,3 +557,4 @@ void appendHistory(sexpMCMCMapT& mcmc_map, sexpArmaMapT& arma_map, SEXP x) {
   Rf_setAttrib(x, Rf_install("history"), ans);
   UNPROTECT(1);
 }
+*/

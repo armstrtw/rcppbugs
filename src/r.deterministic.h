@@ -32,7 +32,7 @@ namespace cppbugs {
   template<typename T>
   class RDeterministic : public Dynamic<T> {
     SEXP fun_;
-    arglistT& args_;
+    arglistT args_;
 
     static void updateFromSEXP(double& dest, SEXP x) {
       dest = REAL(x)[0];
@@ -53,30 +53,37 @@ namespace cppbugs {
       memcpy(dest.memptr(),REAL(x),sizeof(double)*dest.n_elem);
       std::cout << "address of updated mat:" << &dest << std::endl;
     }
-
+    
   public:
-    void jump(RngBase& rng) {
+    static SEXP do_funcall(SEXP fun, arglistT& args) {
       SEXP r_call, ans;
-      switch(args_.size()) {
+      switch(args.size()) {
       case 1:
-        PROTECT(r_call = Rf_lang2(fun_, args_[0]));
+        PROTECT(r_call = Rf_lang2(fun, args[0]));
         break;
       case 2:
-        PROTECT(r_call = Rf_lang3(fun_, args_[0], args_[1]));
+        PROTECT(r_call = Rf_lang3(fun, args[0], args[1]));
         break;
       case 3:
-        PROTECT(r_call = Rf_lang4(fun_, args_[0], args_[1], args_[2]));
+        PROTECT(r_call = Rf_lang4(fun, args[0], args[1], args[2]));
         break;
       default:
         throw std::logic_error("ERROR: too many arguments to deterministic function.");
       }
-      PROTECT(ans = Rf_eval(r_call, R_GlobalEnv));
+      ans = Rf_eval(r_call, R_GlobalEnv);
+      UNPROTECT(1);
+      return ans;
+    }
+
+    void jump(RngBase& rng) {
+      SEXP ans;
+      PROTECT(ans = do_funcall(fun_,args_));
       updateFromSEXP(Dynamic<T>::value,ans);
-      UNPROTECT(2);
-      std::cout << "RDeterministic new value:"  << std::endl << Dynamic<T>::value << std::endl;
+      UNPROTECT(1);
+      //std::cout << "RDeterministic new value:"  << std::endl << Dynamic<T>::value << std::endl;
     }
     ~RDeterministic() { UNPROTECT(1); }
-    RDeterministic(T& value, SEXP fun, arglistT& args): Dynamic<T>(value), fun_(fun), args_(args) {}
+    RDeterministic(T& value, SEXP fun, arglistT args): Dynamic<T>(value), fun_(fun), args_(args) {}
 
     void accept() {}
     void reject(){}

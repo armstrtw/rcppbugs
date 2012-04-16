@@ -38,7 +38,7 @@ namespace cppbugs {
     double accepted_;
     double rejected_;
     SpecializedRng<RNG> rng_;
-    std::vector<MCMCObject*>& mcmcObjects_;
+    std::vector<MCMCObject*> mcmcObjects_;
     std::vector<MCMCObject*> jumping_nodes, dynamic_nodes;
     std::vector<Likelihiood*> logp_functors;
     //std::function<void ()> update;
@@ -101,10 +101,12 @@ namespace cppbugs {
           //print();
           //getchar();
           if(reject(logp_value, old_logp_value)) {
+            std::cout << "reverting" << std::endl;
             it->revert();
             logp_value = old_logp_value;
             it->reject();
           } else {
+            std::cout << "accepting" << std::endl;
             it->accept();
           }
 	}
@@ -130,12 +132,14 @@ namespace cppbugs {
         //getchar();
         //update();
         logp_value = logp();
-        //std::cout << logp_value << std::endl;
+        std::cout << logp_value << std::endl;
         if(reject(logp_value, old_logp_value)) {
+          std::cout << "reverting" << std::endl;
           revert();
           logp_value = old_logp_value;
           rejected_ += 1;
         } else {
+          std::cout << "accepting" << std::endl;
           accepted_ += 1;
         }
         if(i > burn && (i % thin == 0)) {
@@ -147,7 +151,7 @@ namespace cppbugs {
   public:
     // MCModel(std::function<void ()> update_): accepted_(0), rejected_(0), update(update_) {}
     // FIXME: use generic iteratros later...
-    MCModel(std::vector<MCMCObject*>& mcmcObjects): accepted_(0), rejected_(0), mcmcObjects_(mcmcObjects) {
+    MCModel(std::vector<MCMCObject*> mcmcObjects): accepted_(0), rejected_(0), mcmcObjects_(mcmcObjects) {
       initChain();
     }
     
@@ -169,7 +173,10 @@ namespace cppbugs {
 
     double logp() const {
       double ans(0);
+      int i = 1;
       for(auto f : logp_functors) {
+        //ans += f->calc();
+        std::cout << i << ": " << f->calc() << std::endl; ++i;
         ans += f->calc();
       }
       return ans;

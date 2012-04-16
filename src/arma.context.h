@@ -34,6 +34,7 @@ public:
   virtual double& getDouble() { throw std::logic_error("ERROR: Arma type conversion not supported."); }
   virtual arma::vec& getVec() { throw std::logic_error("ERROR: Arma type conversion not supported."); }
   virtual arma::mat& getMat() { throw std::logic_error("ERROR: Arma type conversion not supported."); }
+  virtual void print() const = 0;
 
   // virtual double& getDouble() const { throw std::logic_error("ERROR: Arma type conversion not supported."); double bad; return bad; }
   // virtual arma::vec& getVec() const { throw std::logic_error("ERROR: Arma type conversion not supported."); arma::vec bad; return bad; }
@@ -49,6 +50,7 @@ private:
 public:
   ArmaDouble(SEXP x_sexp): ArmaContext(doubleT), x_(REAL(x_sexp)[0]) {}
   double& getDouble() { return x_; }
+  void print() const { std::cout << x_ << std::endl; }
 };
 
 class ArmaVec : public ArmaContext {
@@ -58,6 +60,7 @@ public:
   //ArmaVec(SEXP x_sexp): ArmaContext(vecT), x_(Rcpp::as<arma::vec>(x_sexp)) {}
   ArmaVec(SEXP x_sexp): ArmaContext(vecT), x_(arma::vec(REAL(x_sexp), Rf_length(x_sexp), false)) {}
   arma::vec& getVec() { return x_; }
+  void print() const { std::cout << x_ << std::endl; }
 };
 
 class ArmaMat : public ArmaContext {
@@ -67,6 +70,7 @@ public:
   //ArmaMat(SEXP x_sexp): ArmaContext(matT), x_(Rcpp::as<arma::mat>(x_sexp)) {}
   ArmaMat(SEXP x_sexp): ArmaContext(matT), x_(arma::mat(REAL(x_sexp), Rf_nrows(x_sexp), Rf_ncols(x_sexp), false)) {}
   arma::mat& getMat() { return x_; }
+  void print() const { std::cout << x_ << std::endl; }
 };
 
 

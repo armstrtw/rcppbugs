@@ -1,5 +1,5 @@
 ###########################################################################
-## Copyright (C) 2011  Whit Armstrong                                    ##
+## Copyright (C) 2012  Whit Armstrong                                    ##
 ##                                                                       ##
 ## This program is free software: you can redistribute it and#or modify  ##
 ## it under the terms of the GNU General Public License as published by  ##
@@ -16,19 +16,23 @@
 ###########################################################################
 
 show.addr <- function(x) {
-    .Call("getRawAddr",x,PACKAGE="RCppBugs")
-}
-
-attr.add <- function(x) {
-    .Call("testAttrAdd",x,PACKAGE="RCppBugs")
-}
-
-attach.args <- function(...) {
-    .External("attachArgs",...,PACKAGE="RCppBugs")
+    invisible(.Call("getRawAddr",x,PACKAGE="RCppBugs"))
 }
 
 logp <- function(x) {
     .Call("logp",x,PACKAGE="RCppBugs")
+}
+
+jump <- function(x) {
+    invisible(.Call("jump",x,PACKAGE="RCppBugs"))
+}
+
+print.mcmc <- function(x) {
+    invisible(.Call("printMCMC",x,PACKAGE="RCppBugs"))
+}
+
+print.arma <- function(x) {
+    invisible(.Call("printArma",x,PACKAGE="RCppBugs"))
 }
 
 create.model <- function(...) {
@@ -39,30 +43,19 @@ run.model <- function(m, iterations, burn, adapt, thin) {
     .Call("run_model", m, iterations, burn, adapt, thin, PACKAGE="RCppBugs")
 }
 
-deterministic <- function(f,...) {
-    args <- list(...)
-
-    ## this could fail for internl/primitive functions
-    stopifnot(length(formals(f))==length(args))
-    x <- do.call(f,args)
-    attr(x,"distributed") <- "deterministic"
-    attr(x,"fun") <- f
-    attach.args(x,...)
-    x
+deterministic <- function(...) {
+    .External("createDeterministic",...,PACKAGE="RCppBugs")
 }
 
 normal <- function(x,mu,tau,observed=FALSE) {
-    attr(x,"distributed") <- "normal"
-    attr(x,"mu") <- mu
-    attr(x,"tau") <- tau
-    attr(x,"observed") <- observed
-    x
+    .Call("createNormal",x,mu,tau,observed,PACKAGE="RCppBugs")
 }
 
 uniform <- function(x,lower,upper,observed=FALSE) {
-    attr(x,"distributed") <- "uniform"
-    attr(x,"lower") <- lower
-    attr(x,"upper") <- upper
-    attr(x,"observed") <- observed
-    x
+    .Call("createUniform",x,lower,upper,observed,PACKAGE="RCppBugs")
+}
+
+
+get.history <- function(x) {
+    .Call("getHist",x,PACKAGE="RCppBugs")
 }
