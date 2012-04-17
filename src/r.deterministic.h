@@ -51,7 +51,7 @@ namespace cppbugs {
     static void updateFromSEXP(arma::mat& dest, SEXP x) {
       //Rprintf("dest size: %d\n",dest.n_elem);
       memcpy(dest.memptr(),REAL(x),sizeof(double)*dest.n_elem);
-      std::cout << "address of updated mat:" << dest.memptr() << std::endl;
+      //std::cout << "address of updated mat:" << dest.memptr() << std::endl;
     }
     
   public:
@@ -63,7 +63,7 @@ namespace cppbugs {
         break;
       case 2:
         PROTECT(r_call = Rf_lang3(fun, args[0], args[1]));
-        std::cout << "using b:" << REAL(args[1])[0] << ":" << REAL(args[1])[1] << std::endl;
+        //std::cout << "using b:" << REAL(args[1])[0] << ":" << REAL(args[1])[1] << std::endl;
         break;
       case 3:
         PROTECT(r_call = Rf_lang4(fun, args[0], args[1], args[2]));
@@ -81,7 +81,7 @@ namespace cppbugs {
       PROTECT(ans = do_funcall(fun_,args_));
       updateFromSEXP(Dynamic<T>::value,ans);
       UNPROTECT(1);
-      std::cout << "RDeterministic new value:"  << std::endl << Dynamic<T>::value << std::endl;
+      //std::cout << "RDeterministic new value:"  << std::endl << Dynamic<T>::value << std::endl;
     }
     ~RDeterministic() { UNPROTECT(1); }
     RDeterministic(T& value, SEXP fun, arglistT args): Dynamic<T>(value), fun_(fun), args_(args) {}

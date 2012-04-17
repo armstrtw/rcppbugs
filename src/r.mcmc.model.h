@@ -54,7 +54,7 @@ namespace cppbugs {
       Stochastic* sp = dynamic_cast<Stochastic*>(node);
       // FIXME: this should throw if sp->getLikelihoodFunctor() returns null
       if(sp && sp->getLikelihoodFunctor() ) {
-        std::cout << "adding stochastic" << std::endl;
+        //std::cout << "adding stochastic" << std::endl;
         logp_functors.push_back(sp->getLikelihoodFunctor());
       }
     }
@@ -76,7 +76,7 @@ namespace cppbugs {
     }
 
     bool reject(const double value, const double old_logp) {
-      std::cout << "logp diff: " << value - old_logp << std::endl;
+      //std::cout << "logp diff: " << value - old_logp << std::endl;
       return bad_logp(value) || log(rng_.uniform()) > (value - old_logp) ? true : false;
     }
 
@@ -92,16 +92,16 @@ namespace cppbugs {
           it->jump(rng_);
           //update();
           logp_value = logp();
-          std::cout << "global logp: " << logp_value << std::endl;
+          //std::cout << "global logp: " << logp_value << std::endl;
           //print();
           //getchar();
           if(reject(logp_value, old_logp_value)) {
-            std::cout << "reverting" << std::endl;
+            //std::cout << "reverting" << std::endl;
             it->revert();
             logp_value = old_logp_value;
             it->reject();
           } else {
-            std::cout << "accepting" << std::endl;
+            //std::cout << "accepting" << std::endl;
             it->accept();
           }
 	}
@@ -128,14 +128,14 @@ namespace cppbugs {
         //getchar();
         //update();
         logp_value = logp();
-        std::cout << "global logp: " << logp_value << std::endl;
+        //std::cout << "global logp: " << logp_value << std::endl;
         if(reject(logp_value, old_logp_value)) {
-          std::cout << "reverting" << std::endl;
+          //std::cout << "reverting" << std::endl;
           revert();
           logp_value = old_logp_value;
           rejected_ += 1;
         } else {
-          std::cout << "accepting" << std::endl;
+          //std::cout << "accepting" << std::endl;
           accepted_ += 1;
         }
         if(i > burn && (i % thin == 0)) {
@@ -172,7 +172,7 @@ namespace cppbugs {
       int i = 1;
       for(auto f : logp_functors) {
         //ans += f->calc();
-        std::cout << i << ": " << f->calc() << std::endl; ++i;
+        //std::cout << i << ": " << f->calc() << std::endl; ++i;
         ans += f->calc();
       }
       return ans;
@@ -186,7 +186,7 @@ namespace cppbugs {
       //std::cout  << "tuning" << std::endl;
       //tune(adapt,static_cast<int>(adapt/100));
 
-      std::cout  << "running" << std::endl;
+      //std::cout  << "running" << std::endl;
       // sampling
       run(iterations, burn, thin);
     }

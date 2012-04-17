@@ -49,7 +49,7 @@ private:
   double& x_;
 public:
   ArmaDouble(SEXP x_sexp): ArmaContext(doubleT), x_(REAL(x_sexp)[0]) {
-    std::cout << "double, raw mem: " << REAL(x_sexp) << std::endl;
+    //std::cout << "double, raw mem: " << REAL(x_sexp) << std::endl;
   }
   double& getDouble() { return x_; }
   void print() const { std::cout << x_ << std::endl; }
@@ -61,7 +61,7 @@ private:
 public:
   //ArmaVec(SEXP x_sexp): ArmaContext(vecT), x_(Rcpp::as<arma::vec>(x_sexp)) {}
   ArmaVec(SEXP x_sexp): ArmaContext(vecT), x_(arma::vec(REAL(x_sexp), Rf_length(x_sexp), false)) {
-    std::cout << "vec, raw mem: " << REAL(x_sexp) << std::endl;
+    //std::cout << "vec, raw mem: " << REAL(x_sexp) << std::endl;
   }
   arma::vec& getVec() { return x_; }
   void print() const { std::cout << x_ << std::endl; }
@@ -73,7 +73,7 @@ private:
 public:
   //ArmaMat(SEXP x_sexp): ArmaContext(matT), x_(Rcpp::as<arma::mat>(x_sexp)) {}
   ArmaMat(SEXP x_sexp): ArmaContext(matT), x_(arma::mat(REAL(x_sexp), Rf_nrows(x_sexp), Rf_ncols(x_sexp), false)) {
-    std::cout << "mat, raw mem: " << REAL(x_sexp) << std::endl;
+    //std::cout << "mat, raw mem: " << REAL(x_sexp) << std::endl;
   }
   arma::mat& getMat() { return x_; }
   void print() const { std::cout << x_ << std::endl; }

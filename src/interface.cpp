@@ -255,7 +255,7 @@ SEXP getHistory(cppbugs::MCMCObject* node) {
   if(sp == nullptr) {
     throw std::logic_error("invalid node conversion.");
   }
-  Rprintf("getHistory<T> history.size(): %d\n",sp->history.size());
+  //Rprintf("getHistory<T> history.size(): %d\n",sp->history.size());
   //PROTECT(ans = Rf_allocVector(VECSXP, sp->history.size()));
   //Rcpp::List ans(sp->history.size());
   //const size_t NC = sp->history.begin()->n_elem;
@@ -286,9 +286,9 @@ template<> SEXP getHistory<arma::vec>(cppbugs::MCMCObject* node) {
     return R_NilValue;
   }
 
-  Rprintf("getHistory<arma::vec> history.size(): %d\n",sp->history.size());
+  //Rprintf("getHistory<arma::vec> history.size(): %d\n",sp->history.size());
   const size_t NC = sp->history.begin()->n_elem;
-  Rprintf("getHistory<arma::vec> history dim: %d\n",NC);
+  //Rprintf("getHistory<arma::vec> history dim: %d\n",NC);
   Rcpp::NumericMatrix ans(sp->history.size(),NC);
   R_len_t i = 0;
   for(typename std::list<arma::vec>::const_iterator it = sp->history.begin(); it != sp->history.end(); it++) {
@@ -306,7 +306,7 @@ template<> SEXP getHistory<double>(cppbugs::MCMCObject* node) {
   if(sp == nullptr) {
     throw std::logic_error("invalid node conversion.");
   }
-  Rprintf("getHistory<double> history.size(): %d\n",sp->history.size());
+  //Rprintf("getHistory<double> history.size(): %d\n",sp->history.size());
   Rcpp::NumericVector ans(sp->history.size());
   R_len_t i = 0;
   for(typename std::list<double>::const_iterator it = sp->history.begin(); it != sp->history.end(); it++) {
@@ -375,15 +375,6 @@ SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
     mcmcMap[rawAddress(arglist[i])] = node;
     mcmcObjects.push_back(node);
   }
-  /*
-  armaObjects[2]->getMat().fill(10);
-  cppbugs::Stochastic* sp = dynamic_cast<cppbugs::Stochastic*>(mcmcObjects[3]);
-  if(sp) {
-    std::cout << sp->loglik() << std::endl;
-  } else {
-    std::cout << "could not coerce to stochastic" << std::endl;
-  }
-  */  
 
   int iterations_ = Rcpp::as<int>(iterations);
   int burn_in_ = Rcpp::as<int>(burn_in);
@@ -487,7 +478,7 @@ cppbugs::MCMCObject* createMCMC(SEXP x, vpArmaMapT& armaMap) {
 
 cppbugs::MCMCObject* createDeterministic(SEXP x_, vpArmaMapT& armaMap) {
   cppbugs::MCMCObject* p;
-  Rprintf("deterministic sexp: %p raw: %p\n",x_,rawAddress(x_));
+  //Rprintf("deterministic sexp: %p raw: %p\n",x_,rawAddress(x_));
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
   // function should be in position 1 (excluding fun/call name)
@@ -542,7 +533,7 @@ cppbugs::MCMCObject* createDeterministic(SEXP x_, vpArmaMapT& armaMap) {
 
 cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
   cppbugs::MCMCObject* p;
-  Rprintf("normal sexp: %p raw: %p\n",x_,rawAddress(x_));
+  //Rprintf("normal sexp: %p raw: %p\n",x_,rawAddress(x_));
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
   SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
@@ -550,7 +541,7 @@ cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
   SEXP tau_ = Rf_getAttrib(x_,Rf_install("tau"));
   SEXP observed_ = Rf_getAttrib(x_,Rf_install("observed"));
 
-  Rprintf("typeof mu: %d\n",TYPEOF(mu_));
+  //Rprintf("typeof mu: %d\n",TYPEOF(mu_));
 
   if(x_ == R_NilValue || env_ == R_NilValue || mu_ == R_NilValue || tau_ == R_NilValue || observed_ == R_NilValue) {
     REprintf("ERROR: missing argument.");
@@ -600,7 +591,7 @@ cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
 
 cppbugs::MCMCObject* createUniform(SEXP x_,vpArmaMapT& armaMap) {
   cppbugs::MCMCObject* p;
-  Rprintf("uniform sexp: %p raw: %p\n",x_,rawAddress(x_));
+  //Rprintf("uniform sexp: %p raw: %p\n",x_,rawAddress(x_));
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
   //ArmaContext* x_arma = getArma(x_);
 
