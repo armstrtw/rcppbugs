@@ -33,16 +33,15 @@ namespace cppbugs {
 
   class RMCModel {
   private:
-    double accepted_;
-    double rejected_;
+    double accepted_,rejected_,logp_value_,old_logp_value_;
     RNativeRng rng_;
-    std::vector<MCMCObject*> mcmcObjects_;
-    std::vector<MCMCObject*> dynamic_nodes;
+    std::vector<MCMCObject*> mcmcObjects_, dynamic_nodes, determinsitic_nodes;
     std::vector<Likelihiood*> logp_functors;
     //std::function<void ()> update;
     //vmc_map data_node_map;
    
     void jump() { for(auto v : dynamic_nodes) { v->jump(rng_); } }
+    void jump_detrministics() { for(auto v : determinsitic_nodes) { v->jump(rng_); } }
     void preserve() { for(auto v : dynamic_nodes) { v->preserve(); } }
     void revert() { for(auto v : dynamic_nodes) { v->revert(); } }
     void set_scale(const double scale) { for(auto v : dynamic_nodes) { v->setScale(scale); } }
@@ -60,18 +59,20 @@ namespace cppbugs {
     }
 
     void initChain() {
-      //logp_functors.clear();
-      //jumping_nodes.clear();
-
       for(auto node : mcmcObjects_) {
         // FIXME: add test here to check starting from invalid logp or NaN
         addStochcasticNode(node);
+
+        if(node->isDeterministc()) {
+          determinsitic_nodes.push_back(node);
+        }
 
         if(!node->isObserved()) {
           dynamic_nodes.push_back(node);
         }
       }
       // init values
+      logp_value_ = logp();
       // update();
     }
 
@@ -81,24 +82,22 @@ namespace cppbugs {
     }
 
     void tune(int iterations, int tuning_step) {
-      double logp_value,old_logp_value;
-      logp_value  = logp();
-      old_logp_value = logp_value;
-
       for(int i = 1; i <= iterations; i++) {
 	for(auto it : dynamic_nodes) {
-          old_logp_value = logp_value;
+          old_logp_value_ = logp_value_;
           it->preserve();
           it->jump(rng_);
-          //update();
-          logp_value = logp();
-          //std::cout << "global logp: " << logp_value << std::endl;
+
+          // has to be done after each stoch jump
+          jump_detrministics();
+          logp_value_ = logp();
+          //std::cout << "global logp: " << logp_value_ << std::endl;
           //print();
           //getchar();
-          if(reject(logp_value, old_logp_value)) {
+          if(reject(logp_value_, old_logp_value_)) {
             //std::cout << "reverting" << std::endl;
             it->revert();
-            logp_value = old_logp_value;
+            logp_value_ = old_logp_value_;
             it->reject();
           } else {
             //std::cout << "accepting" << std::endl;
@@ -111,28 +110,24 @@ namespace cppbugs {
 	    it->tune();
 	  }
 	}
-        tally();
       }
     }
 
     void run(int iterations, int burn, int thin) {
-      double logp_value,old_logp_value;
-      logp_value  = logp();
-      old_logp_value = logp_value;
       for(int i = 1; i <= (iterations + burn); i++) {
         //std::cout << i << std::endl;
-        old_logp_value = logp_value;
+        old_logp_value_ = logp_value_;
         preserve();
         jump();
         //print();
         //getchar();
         //update();
-        logp_value = logp();
-        //std::cout << "global logp: " << logp_value << std::endl;
-        if(reject(logp_value, old_logp_value)) {
+        logp_value_ = logp();
+        //std::cout << "global logp: " << logp_value_ << std::endl;
+        if(reject(logp_value_, old_logp_value_)) {
           //std::cout << "reverting" << std::endl;
           revert();
-          logp_value = old_logp_value;
+          logp_value_ = old_logp_value_;
           rejected_ += 1;
         } else {
           //std::cout << "accepting" << std::endl;
@@ -147,7 +142,7 @@ namespace cppbugs {
   public:
     // MCModel(std::function<void ()> update_): accepted_(0), rejected_(0), update(update_) {}
     // FIXME: use generic iteratros later...
-    RMCModel(std::vector<MCMCObject*> mcmcObjects): accepted_(0), rejected_(0), mcmcObjects_(mcmcObjects) {
+    RMCModel(std::vector<MCMCObject*> mcmcObjects): accepted_(0), rejected_(0), logp_value_(-std::numeric_limits<double>::infinity()), old_logp_value_(-std::numeric_limits<double>::infinity()), mcmcObjects_(mcmcObjects) {
       initChain();
     }
     
@@ -184,50 +179,12 @@ namespace cppbugs {
       }
       // tuning phase
       //std::cout  << "tuning" << std::endl;
-      //tune(adapt,static_cast<int>(adapt/100));
+      tune(adapt,static_cast<int>(adapt/100));
 
       //std::cout  << "running" << std::endl;
       // sampling
       run(iterations, burn, thin);
     }
-
-    /*
-    template<template<typename> class MCTYPE, typename T>
-    MCTYPE<T>& track(T& x) {
-      MCTYPE<T>* node = new MCTYPE<T>(x);
-      mcmcObjects.push_back(node);
-      data_node_map[(void*)(&x)] = node;
-      return *node;
-    }
-
-    template<template<typename> class MCTYPE, typename T>
-    MCTYPE<T>& track(const T& x) {
-      MCTYPE<T>* node = new MCTYPE<T>(x);
-      mcmcObjects.push_back(node);
-      data_node_map[(void*)(&x)] = node;
-      return *node;
-    }
-
-
-    // allows node to be added without being put on the delete list
-    // for those who want full control of their memory...
-    void track(MCMCObject* node) {
-      mcmcObjects.push_back(node);
-    }
-
-    template<typename T>
-    MCMCSpecialized<T>& getNode(const T& x) {
-      vmc_map_iter iter = data_node_map.find((void*)(&x));
-      if(iter == data_node_map.end()) {
-        throw std::logic_error("node not found.");
-      }
-      MCMCSpecialized<T>* ans = dynamic_cast<MCMCSpecialized<T>*>(iter->second);
-      if(ans == nullptr) {
-        throw std::logic_error("invalid node conversion.");
-      }
-      return *ans;
-    }
-    */
   };
 } // namespace cppbugs
 #endif // R_MCMC_MODEL_H

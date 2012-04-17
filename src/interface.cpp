@@ -367,7 +367,7 @@ SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   initArgList(m_, arglist, 1);
   for(size_t i = 0; i < arglist.size(); i++) {
     // force eval of late bindings
-    if(TYPEOF(arglist[i])==SYMSXP) { arglist[i] = Rf_eval(arglist[i],env_); }    
+    if(TYPEOF(arglist[i])==SYMSXP) { arglist[i] = Rf_eval(arglist[i],env_); }
     ArmaContext* ap = getArma(arglist[i]);
     armaMap[rawAddress(arglist[i])] = ap;
     armaObjects.push_back(ap); // to delete later
@@ -385,6 +385,7 @@ SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   try {
     cppbugs::RMCModel m(mcmcObjects);
     m.sample(iterations_, burn_in_, adapt_, thin_);
+    std::cout << "acceptance_ratio: " << m.acceptance_ratio() << std::endl;
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
     return R_NilValue;
