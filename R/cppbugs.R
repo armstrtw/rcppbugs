@@ -74,6 +74,7 @@ normal <- function(x,mu,tau,observed=FALSE) {
     attr(x,"mu") <- substitute(mu)
     attr(x,"tau") <- substitute(tau)
     attr(x,"observed") <- observed
+    attr(x,"env") <- new.env()
     x
 }
 
@@ -82,6 +83,7 @@ uniform <- function(x,lower,upper,observed=FALSE) {
     attr(x,"lower") <- substitute(lower)
     attr(x,"upper") <- substitute(upper)
     attr(x,"observed") <- observed
+    attr(x,"env") <- new.env()
     x
 }
 

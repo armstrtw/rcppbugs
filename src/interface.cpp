@@ -51,17 +51,18 @@ extern "C" SEXP printArma(SEXP x);
 extern "C" SEXP printMCMC(SEXP x);
 extern "C" SEXP createModel(SEXP args_sexp);
 extern "C" SEXP run_model(SEXP mp_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin);
-extern "C" SEXP createDeterministic(SEXP args_);
-extern "C" SEXP createNormal(SEXP x_, SEXP mu_, SEXP tau_, SEXP observed_);
-extern "C" SEXP createUniform(SEXP x_, SEXP lower_, SEXP upper_, SEXP observed_);
 extern "C" SEXP getHist(SEXP x);
 extern "C" SEXP attachArgs(SEXP args);
 
 // private methods
+cppbugs::MCMCObject* createMCMC(SEXP x);
+cppbugs::MCMCObject* createDeterministic(SEXP args_);
+cppbugs::MCMCObject* createNormal(SEXP x_);
+cppbugs::MCMCObject* createUniform(SEXP x_);
+
 void* getExternalPointer(SEXP p_);
 void* getExternalPointerAttribute(SEXP x_, const char* attyName);
 ArmaContext* getArma(SEXP x);
-cppbugs::MCMCObject* getMCMC(SEXP x_);
 void setMCMC(SEXP x_, cppbugs::MCMCObject* p);
 SEXP createRef(SEXP x_);
 void addRef(SEXP x_, SEXP ref, const char* refname);
@@ -86,6 +87,7 @@ SEXP getRawAddr(SEXP x) {
 
 SEXP modmem(SEXP x_) {
   REAL(x_)[0] = 100;
+  return R_NilValue;
 }
 
 static void objectRefFinalizer(SEXP o_) {
@@ -93,9 +95,9 @@ static void objectRefFinalizer(SEXP o_) {
 }
 
 /*
-static void armaContextFinalizer(SEXP a_) {
+  static void armaContextFinalizer(SEXP a_) {
   finalizeSEXP<ArmaContext>(a_);
-}
+  }
 */
 
 static void modelFinalizer(SEXP m_) {
@@ -150,15 +152,14 @@ SEXP attachArgs(SEXP args) {
 
   // pull off data object
   SEXP x = CAR(args); args = CDR(args);
-  arglistT* arglist = new arglistT;
+  arglistT* arglist_p = new arglistT;
 
   // loop through rest of args
   for(; args != R_NilValue; args = CDR(args)) {
-    arglist->push_back(CAR(args));
+    arglist_p->push_back(CAR(args));
   }
 
-  
-  Rf_setAttrib(x, Rf_install("args"), createExternalPoniter(p, arglistFinalizer, "arglist*"));
+  Rf_setAttrib(x, Rf_install("args"), createExternalPoniter(arglist_p, arglistFinalizer, "arglist*"));
   return R_NilValue;
 }
 
@@ -167,7 +168,7 @@ SEXP logp(SEXP x) {
   double ans = std::numeric_limits<double>::quiet_NaN();
   cppbugs::MCMCObject* node(NULL);
   try {
-    node = getMCMC(x);
+    node = createMCMC(x);
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
     return R_NilValue;
@@ -187,7 +188,7 @@ SEXP jump(SEXP x) {
 
   cppbugs::MCMCObject* node(NULL);
   try {
-    node = getMCMC(x);
+    node = createMCMC(x);
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
     return R_NilValue;
@@ -199,7 +200,7 @@ SEXP jump(SEXP x) {
 SEXP printMCMC(SEXP x) {
   cppbugs::MCMCObject* node(NULL);
   try {
-    node = getMCMC(x);
+    node = createMCMC(x);
     node->print();
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
@@ -228,7 +229,7 @@ SEXP createModel(SEXP args_sexp) {
     args_sexp = CDR(args_sexp); /* skip 'name' */
     for(int i = 0; args_sexp != R_NilValue; i++, args_sexp = CDR(args_sexp)) {
       SEXP this_sexp = CAR(args_sexp);
-      mcmcObjects.push_back(getMCMC(this_sexp));      
+      mcmcObjects.push_back(createMCMC(this_sexp));
     }
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
@@ -256,12 +257,12 @@ SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
 }
 
 /*
-void addArmaContext(SEXP x, ArmaContext* ap) {
+  void addArmaContext(SEXP x, ArmaContext* ap) {
   PROTECT(ap_ = R_MakeExternalPtr(reinterpret_cast<void*>(ap),Rf_install("ArmaContext*"),R_NilValue));
   R_RegisterCFinalizerEx(ap_, armaContextFinalizer, TRUE);
   Rf_setAttrib(x, Rf_install("armaContext"), ap_);
   UNPROTECT(1);
-}
+  }
 */
 
 // adds an armaContext external pointer if it does not exist
@@ -287,19 +288,34 @@ ArmaContext* getArma(SEXP x_) {
   return ap;
 }
 
-// unlike getArma, this throws if MCMC external pointer is not found
-cppbugs::MCMCObject* getMCMC(SEXP x_) {
-  cppbugs::MCMCObject* p(NULL);
-  try {
-    p = reinterpret_cast<cppbugs::MCMCObject*>(getExternalPointerAttribute(x_, "mcmc_ptr"));
-  } catch(std::logic_error &e) {
-    REprintf("%s\n",e.what());
+cppbugs::MCMCObject* createMCMC(SEXP x) {
+  SEXP distributed_sexp;
+  distributed_sexp = Rf_getAttrib(x,Rf_install("distributed"));
+  if(distributed_sexp == R_NilValue) {
+    throw std::logic_error("ERROR: 'distributed' attribute not defined. Is this a stochastic variable?");
   }
-  return p;
-}
+  distT distributed = matchDistibution(std::string(CHAR(STRING_ELT(distributed_sexp,0))));
 
-void setMCMC(SEXP x_, cppbugs::MCMCObject* p) {
-  Rf_setAttrib(x_, Rf_install("mcmc_ptr"), createExternalPoniter(p, mcmcObjectFinalizer, "cppbugs::MCMCObject*"));
+  cppbugs::MCMCObject* ans;
+
+  switch(distributed) {
+  case deterministicT:
+    ans = createDeterministic(x);
+    break;
+  case normalDistT:
+    ans = createNormal(x);
+    break;
+  case uniformDistT:
+    ans = createUniform(x);
+    break;
+  case gammaDistT:
+  case betaDistT:
+  case binomialDistT:
+  default:
+    ans = NULL;
+    throw std::logic_error("ERROR: distribution not supported yet.");
+  }
+  return ans;
 }
 
 cppbugs::MCMCObject* createDeterministic(SEXP x_) {
@@ -307,13 +323,13 @@ cppbugs::MCMCObject* createDeterministic(SEXP x_) {
   Rprintf("deterministic sexp: %p raw: %p\n",x_,rawAddress(x_));
 
   // function should be in position 1 (excluding fun/call name)
-  SEXP fun_ = Rf_getAttrib(x_,install("update.method"));
+  SEXP fun_ = Rf_getAttrib(x_,Rf_install("update.method"));
 
   if(fun_ == R_NilValue || TYPEOF(fun_) != CLOSXP) {
     throw std::logic_error("ERROR: update method must be a function.");
   }
 
-  arglistT arglist = *reinterpret_cast<arglistT*>(getExternalPointerAttribute(x,"args"));
+  arglistT arglist = *reinterpret_cast<arglistT*>(getExternalPointerAttribute(x_,"args"));
 
   // map to arma types
   ArmaContext* x_arma = getArma(x_);
@@ -336,19 +352,30 @@ cppbugs::MCMCObject* createDeterministic(SEXP x_) {
     }
   } catch(std::logic_error &e) {
     REprintf("%s\n",e.what());
-    return R_NilValue;
+    return NULL;
   }
   return p;
 }
 
-cppbugs::MCMCObject* createNormal(SEXP x_, SEXP mu_, SEXP tau_, SEXP observed_) {
+cppbugs::MCMCObject* createNormal(SEXP x_) {
   cppbugs::MCMCObject* p;
   Rprintf("normal sexp: %p raw: %p\n",x_,rawAddress(x_));
 
-  if(mu_ == R_NilValue || tau_ == R_NilValue || observed_ == R_NilValue) {
+  SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
+  SEXP mu_ = Rf_getAttrib(x_,Rf_install("mu"));
+  SEXP tau_ = Rf_getAttrib(x_,Rf_install("tau"));
+  SEXP observed_ = Rf_getAttrib(x_,Rf_install("observed"));
+
+  Rprintf("typeof mu: %d\n",TYPEOF(mu_));
+
+  if(x_ == R_NilValue || env_ == R_NilValue || mu_ == R_NilValue || tau_ == R_NilValue || observed_ == R_NilValue) {
     REprintf("ERROR: missing argument.");
-    return R_NilValue;
+    return NULL;
   }
+
+  // force substitutions
+  if(TYPEOF(mu_)==SYMSXP) { mu_ = Rf_eval(mu_,env_); }
+  if(TYPEOF(tau_)==SYMSXP) { tau_ = Rf_eval(tau_,env_); }
 
   bool observed = Rcpp::as<bool>(observed_);
 
@@ -388,14 +415,23 @@ cppbugs::MCMCObject* createNormal(SEXP x_, SEXP mu_, SEXP tau_, SEXP observed_) 
   return p;
 }
 
-cppbugs::MCMCObject* createUniform(SEXP x_, SEXP lower_, SEXP upper_, SEXP observed_) {
-   cppbugs::MCMCObject* p;
-   Rprintf("uniform sexp: %p raw: %p\n",x_,rawAddress(x_));
+cppbugs::MCMCObject* createUniform(SEXP x_) {
+  cppbugs::MCMCObject* p;
+  Rprintf("uniform sexp: %p raw: %p\n",x_,rawAddress(x_));
 
-  if(lower_ == R_NilValue || upper_ == R_NilValue || observed_ == R_NilValue) {
+  SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
+  SEXP lower_ = Rf_getAttrib(x_,Rf_install("lower"));
+  SEXP upper_ = Rf_getAttrib(x_,Rf_install("upper"));
+  SEXP observed_ = Rf_getAttrib(x_,Rf_install("observed"));
+
+  if(x_ == R_NilValue || env_ == R_NilValue || lower_ == R_NilValue || upper_ == R_NilValue || observed_ == R_NilValue) {
     REprintf("ERROR: missing argument.");
-    return R_NilValue;
+    return NULL;
   }
+
+  // force substitutions
+  if(TYPEOF(lower_)==SYMSXP) { lower_ = Rf_eval(lower_,env_); }
+  if(TYPEOF(upper_)==SYMSXP) { upper_ = Rf_eval(upper_,env_); }
 
   bool observed = Rcpp::as<bool>(observed_);
 
@@ -507,7 +543,7 @@ SEXP getHist(SEXP x_) {
   cppbugs::MCMCObject* node(NULL);
   try {
     ap = getArma(x_);
-    node = getMCMC(x_);
+    node = createMCMC(x_);
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
     return R_NilValue;
@@ -539,16 +575,16 @@ SEXP getHist(SEXP x_) {
 }
 
 /*
-void appendHistory(sexpMCMCMapT& mcmc_map, sexpArmaMapT& arma_map, SEXP x) {
+  void appendHistory(sexpMCMCMapT& mcmc_map, sexpArmaMapT& arma_map, SEXP x) {
   SEXP ans;
   void* sexp_data_ptr = rawAddress(x);
 
   if(arma_map.count(sexp_data_ptr) == 0) {
-    throw std::logic_error("ERROR: getHistory, node not found in armaContextMap.");
+  throw std::logic_error("ERROR: getHistory, node not found in armaContextMap.");
   }
 
   if(mcmc_map.count(sexp_data_ptr) == 0) {
-    throw std::logic_error("ERROR: getHistory, node not found in mcmcContextMap.");
+  throw std::logic_error("ERROR: getHistory, node not found in mcmcContextMap.");
   }
 
   ArmaContext* arma_ptr = arma_map[sexp_data_ptr];
@@ -556,22 +592,22 @@ void appendHistory(sexpMCMCMapT& mcmc_map, sexpArmaMapT& arma_map, SEXP x) {
 
   switch(arma_ptr->getArmaType()) {
   case doubleT:
-    PROTECT(ans = getHistory<double>(mcmc_ptr));
-    break;
+  PROTECT(ans = getHistory<double>(mcmc_ptr));
+  break;
   case vecT:
-    PROTECT(ans = getHistory<arma::vec>(mcmc_ptr));
-    break;
+  PROTECT(ans = getHistory<arma::vec>(mcmc_ptr));
+  break;
   case matT:
-    PROTECT(ans = getHistory<arma::mat>(mcmc_ptr));
-    break;
+  PROTECT(ans = getHistory<arma::mat>(mcmc_ptr));
+  break;
   case intT:
   case ivecT:
   case imatT:
   default:
-    throw std::logic_error("ERROR: history conversion not supported for this type.");
+  throw std::logic_error("ERROR: history conversion not supported for this type.");
   }
   //Rprintf("returned length: %d",Rf_length(ans));
   Rf_setAttrib(x, Rf_install("history"), ans);
   UNPROTECT(1);
-}
+  }
 */
