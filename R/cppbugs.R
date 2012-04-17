@@ -15,22 +15,6 @@
 ## along with this program.  If not, see <http:##www.gnu.org#licenses#>. ##
 ###########################################################################
 
-show.addr <- function(x) {
-    invisible(.Call("getRawAddr",x,PACKAGE="RCppBugs"))
-}
-
-mod.mem <- function(x) {
-    invisible(.Call("modmem",x,PACKAGE="RCppBugs"))
-}
-
-create.ref <- function(x) {
-    .Call("createRef",x,PACKAGE="RCppBugs")
-}
-
-get.ref <- function(x) {
-    .Call("getRef",x,PACKAGE="RCppBugs")
-}
-
 logp <- function(x) {
     .Call("logp",x,PACKAGE="RCppBugs")
 }
@@ -39,27 +23,22 @@ jump <- function(x) {
     invisible(.Call("jump",x,PACKAGE="RCppBugs"))
 }
 
-print.mcmc <- function(x) {
-    invisible(.Call("printMCMC",x,PACKAGE="RCppBugs"))
-}
+## print.mcmc <- function(x) {
+##     invisible(.Call("printMCMC",x,PACKAGE="RCppBugs"))
+## }
 
-print.arma <- function(x) {
-    invisible(.Call("printArma",x,PACKAGE="RCppBugs"))
-}
+## print.arma <- function(x) {
+##     invisible(.Call("printArma",x,PACKAGE="RCppBugs"))
+## }
 
 create.model <- function(...) {
-    ##.External("createModel",...,PACKAGE="RCppBugs")
     m <- match.call()
     attr(m,"env") <- new.env()
     m
 }
 
 run.model <- function(m, iterations, burn, adapt, thin) {
-    .Call("run_model", m, iterations, burn, adapt, thin, PACKAGE="RCppBugs")
-}
-
-attach.args <- function(...) {
-    .External("attachArgs",...,PACKAGE="RCppBugs")
+    .Call("runModel", m, iterations, burn, adapt, thin, PACKAGE="RCppBugs")
 }
 
 deterministic <- function(f,...) {
@@ -68,7 +47,7 @@ deterministic <- function(f,...) {
     ## capture shape/type of result
     x <- do.call(f,list(...))
     attr(x,"distributed") <- "deterministic"
-    attr(x,"update.method") <- f
+    attr(x,"update.method") <- compiler::compile(f)
     attr(x,"call") <- mc
     attr(x,"env") <- new.env()
     x
@@ -90,8 +69,4 @@ uniform <- function(x,lower,upper,observed=FALSE) {
     attr(x,"observed") <- observed
     attr(x,"env") <- new.env()
     x
-}
-
-get.history <- function(x) {
-    .Call("getHist",x,PACKAGE="RCppBugs")
 }

@@ -1,17 +1,10 @@
 useDynLib(RCppBugs)
 
-export(show.addr,
-       mod.mem,
-       create.ref,
-       get.ref,
-       create.model,
+export(create.model,
        logp,
        jump,
-       print.arma,
-       print.mcmc,
        run.model,
        deterministic,
        normal,
-       uniform,
-       get.history
+       uniform
        )

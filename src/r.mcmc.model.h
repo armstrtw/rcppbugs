@@ -28,8 +28,6 @@
 #include "mcmc.rng.hpp"
 
 namespace cppbugs {
-  //typedef std::map<void*,MCMCObject*> vmc_map;
-  //typedef std::map<void*,MCMCObject*>::iterator vmc_map_iter;
 
   class RMCModel {
   private:
@@ -37,8 +35,6 @@ namespace cppbugs {
     RNativeRng rng_;
     std::vector<MCMCObject*> mcmcObjects_, dynamic_nodes, determinsitic_nodes;
     std::vector<Likelihiood*> logp_functors;
-    //std::function<void ()> update;
-    //vmc_map data_node_map;
    
     void jump() { for(auto v : dynamic_nodes) { v->jump(rng_); } }
     void jump_detrministics() { for(auto v : determinsitic_nodes) { v->jump(rng_); } }
@@ -71,13 +67,11 @@ namespace cppbugs {
           dynamic_nodes.push_back(node);
         }
       }
-      // init values
+      // init logp
       logp_value_ = logp();
-      // update();
     }
 
     bool reject(const double value, const double old_logp) {
-      //std::cout << "logp diff: " << value - old_logp << std::endl;
       return bad_logp(value) || log(rng_.uniform()) > (value - old_logp) ? true : false;
     }
 
@@ -91,21 +85,15 @@ namespace cppbugs {
           // has to be done after each stoch jump
           jump_detrministics();
           logp_value_ = logp();
-          //std::cout << "global logp: " << logp_value_ << std::endl;
-          //print();
-          //getchar();
           if(reject(logp_value_, old_logp_value_)) {
-            //std::cout << "reverting" << std::endl;
             it->revert();
             logp_value_ = old_logp_value_;
             it->reject();
           } else {
-            //std::cout << "accepting" << std::endl;
             it->accept();
           }
 	}
 	if(i % tuning_step == 0) {
-          //std::cout << "tuning at step: " << i << std::endl;
 	  for(auto it : dynamic_nodes) {
 	    it->tune();
 	  }
@@ -119,18 +107,12 @@ namespace cppbugs {
         old_logp_value_ = logp_value_;
         preserve();
         jump();
-        //print();
-        //getchar();
-        //update();
         logp_value_ = logp();
-        //std::cout << "global logp: " << logp_value_ << std::endl;
         if(reject(logp_value_, old_logp_value_)) {
-          //std::cout << "reverting" << std::endl;
           revert();
           logp_value_ = old_logp_value_;
           rejected_ += 1;
         } else {
-          //std::cout << "accepting" << std::endl;
           accepted_ += 1;
         }
         if(i > burn && (i % thin == 0)) {
@@ -140,34 +122,18 @@ namespace cppbugs {
     }
 
   public:
-    // MCModel(std::function<void ()> update_): accepted_(0), rejected_(0), update(update_) {}
-    // FIXME: use generic iteratros later...
+    // FIXME: use generic iterators later...
     RMCModel(std::vector<MCMCObject*> mcmcObjects): accepted_(0), rejected_(0), logp_value_(-std::numeric_limits<double>::infinity()), old_logp_value_(-std::numeric_limits<double>::infinity()), mcmcObjects_(mcmcObjects) {
       initChain();
     }
     
-    /*
-    ~MCModel() {
-      // use data_node_map as delete list
-      // only objects allocated by this class are inserted there
-      // addNode allows user allocated objects to enter the mcmcObjects vector
-      for(auto m : data_node_map) {
-        delete m.second;
-      }
-    }
-    */
-
     double acceptance_ratio() const {
       return accepted_ / (accepted_ + rejected_);
     }
 
-
     double logp() const {
       double ans(0);
-      int i = 1;
       for(auto f : logp_functors) {
-        //ans += f->calc();
-        //std::cout << i << ": " << f->calc() << std::endl; ++i;
         ans += f->calc();
       }
       return ans;
@@ -177,12 +143,7 @@ namespace cppbugs {
       if(iterations % thin) {
         throw std::logic_error("ERROR: interations not a multiple of thin.");
       }
-      // tuning phase
-      //std::cout  << "tuning" << std::endl;
       tune(adapt,static_cast<int>(adapt/100));
-
-      //std::cout  << "running" << std::endl;
-      // sampling
       run(iterations, burn, thin);
     }
   };
