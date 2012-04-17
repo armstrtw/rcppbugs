@@ -48,7 +48,10 @@ print.arma <- function(x) {
 }
 
 create.model <- function(...) {
-    .External("createModel",...,PACKAGE="RCppBugs")
+    ##.External("createModel",...,PACKAGE="RCppBugs")
+    m <- match.call()
+    attr(m,"env") <- new.env()
+    m
 }
 
 run.model <- function(m, iterations, burn, adapt, thin) {
@@ -61,11 +64,13 @@ attach.args <- function(...) {
 
 deterministic <- function(f,...) {
     mc <- match.call()
+    stopifnot(typeof(eval(mc[[2]]))=="closure")
     ## capture shape/type of result
     x <- do.call(f,list(...))
     attr(x,"distributed") <- "deterministic"
     attr(x,"update.method") <- f
-    attach.args(x,...)
+    attr(x,"call") <- mc
+    attr(x,"env") <- new.env()
     x
 }
 

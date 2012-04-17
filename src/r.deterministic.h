@@ -51,7 +51,7 @@ namespace cppbugs {
     static void updateFromSEXP(arma::mat& dest, SEXP x) {
       //Rprintf("dest size: %d\n",dest.n_elem);
       memcpy(dest.memptr(),REAL(x),sizeof(double)*dest.n_elem);
-      std::cout << "address of updated mat:" << &dest << std::endl;
+      std::cout << "address of updated mat:" << dest.memptr() << std::endl;
     }
     
   public:
@@ -70,8 +70,8 @@ namespace cppbugs {
       default:
         throw std::logic_error("ERROR: too many arguments to deterministic function.");
       }
-      ans = Rf_eval(r_call, R_GlobalEnv);
-      UNPROTECT(1);
+      PROTECT(ans = Rf_eval(r_call, R_GlobalEnv));
+      UNPROTECT(2);
       return ans;
     }
 

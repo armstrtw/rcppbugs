@@ -39,15 +39,15 @@ namespace cppbugs {
     double rejected_;
     SpecializedRng<RNG> rng_;
     std::vector<MCMCObject*> mcmcObjects_;
-    std::vector<MCMCObject*> jumping_nodes, dynamic_nodes;
+    std::vector<MCMCObject*> dynamic_nodes;
     std::vector<Likelihiood*> logp_functors;
     //std::function<void ()> update;
     //vmc_map data_node_map;
    
-    void jump() { for(auto v : jumping_nodes) { v->jump(rng_); } }
+    void jump() { for(auto v : dynamic_nodes) { v->jump(rng_); } }
     void preserve() { for(auto v : dynamic_nodes) { v->preserve(); } }
     void revert() { for(auto v : dynamic_nodes) { v->revert(); } }
-    void set_scale(const double scale) { for(auto v : jumping_nodes) { v->setScale(scale); } }
+    void set_scale(const double scale) { for(auto v : dynamic_nodes) { v->setScale(scale); } }
     void tally() { for(auto v : dynamic_nodes) { v->tally(); } }
     void print() { for(auto v : mcmcObjects_) { v->print(); } }
     static bool bad_logp(const double value) { return std::isnan(value) || value == -std::numeric_limits<double>::infinity() ? true : false; }
@@ -69,10 +69,6 @@ namespace cppbugs {
         // FIXME: add test here to check starting from invalid logp or NaN
         addStochcasticNode(node);
 
-        if((node->isStochastic() && !node->isObserved()) || node->isDeterministc()) {
-          jumping_nodes.push_back(node);
-        }
-
         if(!node->isObserved()) {
           dynamic_nodes.push_back(node);
         }
@@ -91,7 +87,7 @@ namespace cppbugs {
       old_logp_value = -std::numeric_limits<double>::infinity();
 
       for(int i = 1; i <= iterations; i++) {
-	for(auto it : jumping_nodes) {
+	for(auto it : dynamic_nodes) {
           old_logp_value = logp_value;
           it->preserve();
           it->jump(rng_);
@@ -112,7 +108,7 @@ namespace cppbugs {
 	}
 	if(i % tuning_step == 0) {
           //std::cout << "tuning at step: " << i << std::endl;
-	  for(auto it : jumping_nodes) {
+	  for(auto it : dynamic_nodes) {
 	    it->tune();
 	  }
 	}

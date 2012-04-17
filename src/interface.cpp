@@ -40,6 +40,8 @@
 #include "r.deterministic.h"
 #include "r.mcmc.model.h"
 
+typedef std::map<void*,ArmaContext*> vpArmaMapT;
+
 // public interface
 extern "C" SEXP getRawAddr(SEXP x);
 extern "C" SEXP createRef(SEXP x_);
@@ -66,6 +68,7 @@ ArmaContext* getArma(SEXP x);
 void setMCMC(SEXP x_, cppbugs::MCMCObject* p);
 SEXP createRef(SEXP x_);
 void addRef(SEXP x_, SEXP ref, const char* refname);
+void initArgList(SEXP args, arglistT& arglist, const size_t skip);
 
 class ObjectRef {
 private:
@@ -146,6 +149,17 @@ void* getExternalPointerAttribute(SEXP x_, const char* attyName) {
   return getExternalPointer(p_);
 }
 
+void initArgList(SEXP args, arglistT& arglist, const size_t skip) {
+
+  for(size_t i = 0; i < skip; i++) {
+    args = CDR(args);
+  }
+
+  // loop through rest of args
+  for(; args != R_NilValue; args = CDR(args)) {
+    arglist.push_back(CAR(args));
+  }
+}
 
 SEXP attachArgs(SEXP args) {
   args = CDR(args); // skip 'name'
@@ -238,7 +252,7 @@ SEXP createModel(SEXP args_sexp) {
   cppbugs::MCModel<boost::minstd_rand>* m = new cppbugs::MCModel<boost::minstd_rand>(mcmcObjects);
   return createExternalPoniter(m, modelFinalizer, "cppbugs::MCModel<boost::minstd_rand>*");
 }
-
+/*
 SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
 
   int iterations_ = Rcpp::as<int>(iterations);
@@ -254,6 +268,69 @@ SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
     REprintf("%s\n",e.what());
     return R_NilValue;
   }
+}
+*/
+
+SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
+  SEXP env_ = Rf_getAttrib(m_,Rf_install("env"));
+  if(env_ == R_NilValue || TYPEOF(env_) != ENVSXP) {
+    throw std::logic_error("ERROR: bad environment passed to deterministic.");
+  }
+
+  vpArmaMapT armaMap;
+  std::vector<cppbugs::MCMCObject*> mcmcObjects;
+  std::vector<ArmaContext*> armaObjects;
+
+  arglistT arglist;
+  initArgList(m_, arglist, 1);
+  for(size_t i = 0; i < arglist.size(); i++) {
+    // force eval of late bindings
+    if(TYPEOF(arglist[i])==SYMSXP) { arglist[i] = Rf_eval(arglist[i],env_); }    
+    ArmaContext* ap = getArma(arglist[i]);
+    armaMap[rawAddress(x_)] = ap;
+    armaObjects.push_back(ap); // to delete later
+    //mcmcObjects.push_back(createMCMC(arglist[i],ap));
+    mcmcObjects.push_back(createMCMC(arglist[i]));
+    
+    /*
+    switch(ap->getArmaType()) {
+    case doubleT:
+      ap->getDouble() = -100;
+      break;
+    case vecT:
+      ap->getVec().at(0) = 10;
+      break;
+    case matT:
+      ap->getMat().at(0) = 100;
+      break;
+    }
+    */
+  }
+  /*
+  armaObjects[2]->getMat().fill(10);
+  cppbugs::Stochastic* sp = dynamic_cast<cppbugs::Stochastic*>(mcmcObjects[3]);
+  if(sp) {
+    std::cout << sp->loglik() << std::endl;
+  } else {
+    std::cout << "could not coerce to stochastic" << std::endl;
+  }
+  */  
+
+  int iterations_ = Rcpp::as<int>(iterations);
+  int burn_in_ = Rcpp::as<int>(burn_in);
+  int adapt_ = Rcpp::as<int>(adapt);
+  int thin_ = Rcpp::as<int>(thin);
+
+
+  try {
+    cppbugs::MCModel<boost::minstd_rand> m(mcmcObjects);
+    m.sample(iterations_, burn_in_, adapt_, thin_);
+    return Rcpp::wrap(m.acceptance_ratio());
+  } catch (std::logic_error &e) {
+    REprintf("%s\n",e.what());
+    return R_NilValue;
+  }
+  //return R_NilValue;
 }
 
 /*
@@ -321,18 +398,34 @@ cppbugs::MCMCObject* createMCMC(SEXP x) {
 cppbugs::MCMCObject* createDeterministic(SEXP x_) {
   cppbugs::MCMCObject* p;
   Rprintf("deterministic sexp: %p raw: %p\n",x_,rawAddress(x_));
+  ArmaContext* x_arma = getArma(x_);
 
   // function should be in position 1 (excluding fun/call name)
   SEXP fun_ = Rf_getAttrib(x_,Rf_install("update.method"));
-
   if(fun_ == R_NilValue || TYPEOF(fun_) != CLOSXP) {
     throw std::logic_error("ERROR: update method must be a function.");
   }
 
-  arglistT arglist = *reinterpret_cast<arglistT*>(getExternalPointerAttribute(x_,"args"));
+  SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
+  if(env_ == R_NilValue || TYPEOF(env_) != ENVSXP) {
+    throw std::logic_error("ERROR: bad environment passed to deterministic.");
+  }
+  SEXP call_ = Rf_getAttrib(x_,Rf_install("call"));
+  if(TYPEOF(call_) != LANGSXP) {
+    throw std::logic_error("ERROR: function arguments not LANGSXP.");
+  }
+  if(Rf_length(call_) <= 2) {
+    throw std::logic_error("ERROR: function must have at least one argument.");
+  }
+
+  arglistT arglist;
+  initArgList(call_, arglist, 2);
+  for(size_t i = 0; i < arglist.size(); i++) {
+    if(TYPEOF(arglist[i])==SYMSXP) { arglist[i] = Rf_eval(arglist[i],env_); }
+    getArma(arglist[i]); // for debug print
+  }
 
   // map to arma types
-  ArmaContext* x_arma = getArma(x_);
   try {
     switch(x_arma->getArmaType()) {
     case doubleT:
@@ -360,6 +453,7 @@ cppbugs::MCMCObject* createDeterministic(SEXP x_) {
 cppbugs::MCMCObject* createNormal(SEXP x_) {
   cppbugs::MCMCObject* p;
   Rprintf("normal sexp: %p raw: %p\n",x_,rawAddress(x_));
+  ArmaContext* x_arma = getArma(x_);
 
   SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
   SEXP mu_ = Rf_getAttrib(x_,Rf_install("mu"));
@@ -380,9 +474,8 @@ cppbugs::MCMCObject* createNormal(SEXP x_) {
   bool observed = Rcpp::as<bool>(observed_);
 
   // map to arma types
-  ArmaContext* x_arma = getArma(x_); Rprintf("x addr: %p\n",rawAddress(x_));
-  ArmaContext* mu_arma = getArma(mu_);  Rprintf("mu addr: %p\n",rawAddress(mu_));
-  ArmaContext* tau_arma = getArma(tau_); Rprintf("tau addr: %p\n",rawAddress(tau_));
+  ArmaContext* mu_arma = getArma(mu_);  //Rprintf("mu addr: %p\n",rawAddress(mu_));
+  ArmaContext* tau_arma = getArma(tau_); //Rprintf("tau addr: %p\n",rawAddress(tau_));
 
   switch(x_arma->getArmaType()) {
   case doubleT:
@@ -418,6 +511,7 @@ cppbugs::MCMCObject* createNormal(SEXP x_) {
 cppbugs::MCMCObject* createUniform(SEXP x_) {
   cppbugs::MCMCObject* p;
   Rprintf("uniform sexp: %p raw: %p\n",x_,rawAddress(x_));
+  ArmaContext* x_arma = getArma(x_);
 
   SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
   SEXP lower_ = Rf_getAttrib(x_,Rf_install("lower"));
@@ -437,7 +531,6 @@ cppbugs::MCMCObject* createUniform(SEXP x_) {
 
   // map to arma types
   // FIXME: delete later...
-  ArmaContext* x_arma = getArma(x_);
   ArmaContext* lower_arma = getArma(lower_);
   ArmaContext* upper_arma = getArma(upper_);
 
