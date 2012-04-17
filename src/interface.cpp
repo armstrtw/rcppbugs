@@ -41,6 +41,7 @@
 #include "r.mcmc.model.h"
 
 typedef std::map<void*,ArmaContext*> vpArmaMapT;
+typedef std::map<void*,cppbugs::MCMCObject*> vpMCMCMapT;
 
 // public interface
 extern "C" SEXP getRawAddr(SEXP x);
@@ -53,14 +54,14 @@ extern "C" SEXP printArma(SEXP x);
 extern "C" SEXP printMCMC(SEXP x);
 extern "C" SEXP createModel(SEXP args_sexp);
 extern "C" SEXP run_model(SEXP mp_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin);
-extern "C" SEXP getHist(SEXP x);
+//extern "C" SEXP getHist(SEXP x);
 extern "C" SEXP attachArgs(SEXP args);
 
 // private methods
-cppbugs::MCMCObject* createMCMC(SEXP x);
-cppbugs::MCMCObject* createDeterministic(SEXP args_);
-cppbugs::MCMCObject* createNormal(SEXP x_);
-cppbugs::MCMCObject* createUniform(SEXP x_);
+cppbugs::MCMCObject* createMCMC(SEXP x, vpArmaMapT& armaMap);
+cppbugs::MCMCObject* createDeterministic(SEXP args_, vpArmaMapT& armaMap);
+cppbugs::MCMCObject* createNormal(SEXP x_, vpArmaMapT& armaMap);
+cppbugs::MCMCObject* createUniform(SEXP x_, vpArmaMapT& armaMap);
 
 void* getExternalPointer(SEXP p_);
 void* getExternalPointerAttribute(SEXP x_, const char* attyName);
@@ -103,10 +104,11 @@ static void objectRefFinalizer(SEXP o_) {
   }
 */
 
+/*
 static void modelFinalizer(SEXP m_) {
   finalizeSEXP<cppbugs::MCModel<boost::minstd_rand> >(m_);
 }
-
+*/
 
 static void arglistFinalizer(SEXP a_) {
   finalizeSEXP<arglistT>(a_);
@@ -178,11 +180,14 @@ SEXP attachArgs(SEXP args) {
 }
 
 
-SEXP logp(SEXP x) {
+SEXP logp(SEXP x_) {
   double ans = std::numeric_limits<double>::quiet_NaN();
   cppbugs::MCMCObject* node(NULL);
+  vpArmaMapT armaMap;
   try {
-    node = createMCMC(x);
+    ArmaContext* ap = getArma(x_);
+    armaMap[rawAddress(x_)] = ap;
+    node = createMCMC(x_,armaMap);
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
     return R_NilValue;
@@ -197,12 +202,15 @@ SEXP logp(SEXP x) {
   return Rcpp::wrap(ans);
 }
 
-SEXP jump(SEXP x) {
-  static cppbugs::SpecializedRng<boost::minstd_rand> rng;
-
+SEXP jump(SEXP x_) {
+  static cppbugs::RNativeRng rng;
   cppbugs::MCMCObject* node(NULL);
+  vpArmaMapT armaMap;
+
   try {
-    node = createMCMC(x);
+    ArmaContext* ap = getArma(x_);
+    armaMap[rawAddress(x_)] = ap;
+    node = createMCMC(x_,armaMap);
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
     return R_NilValue;
@@ -211,11 +219,16 @@ SEXP jump(SEXP x) {
   return R_NilValue;
 }
 
-SEXP printMCMC(SEXP x) {
+SEXP printMCMC(SEXP x_) {
   cppbugs::MCMCObject* node(NULL);
+  vpArmaMapT armaMap;
+
   try {
-    node = createMCMC(x);
-    node->print();
+    ArmaContext* ap = getArma(x_);
+    armaMap[rawAddress(x_)] = ap;
+    node = createMCMC(x_,armaMap);
+    //node->print();
+    delete node; delete armaMap[rawAddress(x_)];
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
     return R_NilValue;
@@ -235,12 +248,80 @@ SEXP printArma(SEXP x) {
   return R_NilValue;
 }
 
+template<typename T>
+SEXP getHistory(cppbugs::MCMCObject* node) {
+  //SEXP ans;
+  cppbugs::MCMCSpecialized<T>* sp = dynamic_cast<cppbugs::MCMCSpecialized<T>*>(node);
+  if(sp == nullptr) {
+    throw std::logic_error("invalid node conversion.");
+  }
+  Rprintf("getHistory<T> history.size(): %d\n",sp->history.size());
+  //PROTECT(ans = Rf_allocVector(VECSXP, sp->history.size()));
+  //Rcpp::List ans(sp->history.size());
+  //const size_t NC = sp->history.begin()->n_elem;
+  const size_t NC = sp->history.begin()->n_cols;
+  Rcpp::NumericMatrix ans(sp->history.size(),NC);
+  R_len_t i = 0;
+  for(typename std::list<T>::const_iterator it = sp->history.begin(); it != sp->history.end(); it++) {
+    //SET_VECTOR_ELT(ans, i, Rcpp::wrap(*it)); ++i;
+    //ans[i] = Rcpp::wrap(*it);
+    //Rprintf("%d %d",i, it->n_cols);
+    for(size_t j = 0; j < NC; j++) {
+      ans(i,j) = it->at(j);
+    }
+    ++i;
+  }
+  //UNPROTECT(1);
+  return Rcpp::wrap(ans);
+}
+
+template<> SEXP getHistory<arma::vec>(cppbugs::MCMCObject* node) {
+  //SEXP ans;
+  cppbugs::MCMCSpecialized<arma::vec>* sp = dynamic_cast<cppbugs::MCMCSpecialized<arma::vec>*>(node);
+  if(sp == nullptr) {
+    throw std::logic_error("invalid node conversion.");
+  }
+
+  if(sp->history.size()==0) {
+    return R_NilValue;
+  }
+
+  Rprintf("getHistory<arma::vec> history.size(): %d\n",sp->history.size());
+  const size_t NC = sp->history.begin()->n_elem;
+  Rprintf("getHistory<arma::vec> history dim: %d\n",NC);
+  Rcpp::NumericMatrix ans(sp->history.size(),NC);
+  R_len_t i = 0;
+  for(typename std::list<arma::vec>::const_iterator it = sp->history.begin(); it != sp->history.end(); it++) {
+    for(size_t j = 0; j < NC; j++) {
+      ans(i,j) = it->at(j);
+    }
+    ++i;
+  }
+  //UNPROTECT(1);
+  return Rcpp::wrap(ans);
+}
+
+template<> SEXP getHistory<double>(cppbugs::MCMCObject* node) {
+  cppbugs::MCMCSpecialized<double>* sp = dynamic_cast<cppbugs::MCMCSpecialized<double>*>(node);
+  if(sp == nullptr) {
+    throw std::logic_error("invalid node conversion.");
+  }
+  Rprintf("getHistory<double> history.size(): %d\n",sp->history.size());
+  Rcpp::NumericVector ans(sp->history.size());
+  R_len_t i = 0;
+  for(typename std::list<double>::const_iterator it = sp->history.begin(); it != sp->history.end(); it++) {
+    ans[i] =*it; ++i;
+  }
+  return Rcpp::wrap(ans);
+}
+
+/*
 SEXP createModel(SEXP args_sexp) {
   std::vector<cppbugs::MCMCObject*> mcmcObjects;
   try {
     //CDR(args_sexp); // function name
     //for(R_len_t i = 0; i < Rf_length(args_sexp); i++) {
-    args_sexp = CDR(args_sexp); /* skip 'name' */
+    args_sexp = CDR(args_sexp); // skip 'name'
     for(int i = 0; args_sexp != R_NilValue; i++, args_sexp = CDR(args_sexp)) {
       SEXP this_sexp = CAR(args_sexp);
       mcmcObjects.push_back(createMCMC(this_sexp));
@@ -252,7 +333,7 @@ SEXP createModel(SEXP args_sexp) {
   cppbugs::MCModel<boost::minstd_rand>* m = new cppbugs::MCModel<boost::minstd_rand>(mcmcObjects);
   return createExternalPoniter(m, modelFinalizer, "cppbugs::MCModel<boost::minstd_rand>*");
 }
-/*
+
 SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
 
   int iterations_ = Rcpp::as<int>(iterations);
@@ -278,6 +359,7 @@ SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   }
 
   vpArmaMapT armaMap;
+  vpMCMCMapT mcmcMap;
   std::vector<cppbugs::MCMCObject*> mcmcObjects;
   std::vector<ArmaContext*> armaObjects;
 
@@ -287,24 +369,11 @@ SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
     // force eval of late bindings
     if(TYPEOF(arglist[i])==SYMSXP) { arglist[i] = Rf_eval(arglist[i],env_); }    
     ArmaContext* ap = getArma(arglist[i]);
-    armaMap[rawAddress(x_)] = ap;
+    armaMap[rawAddress(arglist[i])] = ap;
     armaObjects.push_back(ap); // to delete later
-    //mcmcObjects.push_back(createMCMC(arglist[i],ap));
-    mcmcObjects.push_back(createMCMC(arglist[i]));
-    
-    /*
-    switch(ap->getArmaType()) {
-    case doubleT:
-      ap->getDouble() = -100;
-      break;
-    case vecT:
-      ap->getVec().at(0) = 10;
-      break;
-    case matT:
-      ap->getMat().at(0) = 100;
-      break;
-    }
-    */
+    cppbugs::MCMCObject* node = createMCMC(arglist[i],armaMap);
+    mcmcMap[rawAddress(arglist[i])] = node;
+    mcmcObjects.push_back(node);
   }
   /*
   armaObjects[2]->getMat().fill(10);
@@ -323,14 +392,35 @@ SEXP run_model(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
 
 
   try {
-    cppbugs::MCModel<boost::minstd_rand> m(mcmcObjects);
+    cppbugs::RMCModel m(mcmcObjects);
     m.sample(iterations_, burn_in_, adapt_, thin_);
-    return Rcpp::wrap(m.acceptance_ratio());
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
     return R_NilValue;
   }
-  //return R_NilValue;
+
+  SEXP ans; PROTECT(ans = Rf_allocVector(VECSXP, arglist.size()));
+  for(size_t i = 0; i < arglist.size(); i++) {
+    ArmaContext* ap = armaMap[rawAddress(arglist[i])];
+    cppbugs::MCMCObject* node = mcmcMap[rawAddress(arglist[i])];
+    if(!node->isObserved()) {
+      switch(ap->getArmaType()) {
+      case doubleT:
+        SET_VECTOR_ELT(ans,i,getHistory<double>(node));
+        break;
+      case vecT:
+        SET_VECTOR_ELT(ans,i,getHistory<arma::vec>(node));
+        break;
+      case matT:
+      default:
+        SET_VECTOR_ELT(ans,i,R_NilValue);
+      }
+    } else {
+      SET_VECTOR_ELT(ans,i,R_NilValue);
+    }
+  }
+  UNPROTECT(1);
+  return ans;
 }
 
 /*
@@ -365,7 +455,7 @@ ArmaContext* getArma(SEXP x_) {
   return ap;
 }
 
-cppbugs::MCMCObject* createMCMC(SEXP x) {
+cppbugs::MCMCObject* createMCMC(SEXP x, vpArmaMapT& armaMap) {
   SEXP distributed_sexp;
   distributed_sexp = Rf_getAttrib(x,Rf_install("distributed"));
   if(distributed_sexp == R_NilValue) {
@@ -377,13 +467,13 @@ cppbugs::MCMCObject* createMCMC(SEXP x) {
 
   switch(distributed) {
   case deterministicT:
-    ans = createDeterministic(x);
+    ans = createDeterministic(x,armaMap);
     break;
   case normalDistT:
-    ans = createNormal(x);
+    ans = createNormal(x,armaMap);
     break;
   case uniformDistT:
-    ans = createUniform(x);
+    ans = createUniform(x,armaMap);
     break;
   case gammaDistT:
   case betaDistT:
@@ -395,10 +485,10 @@ cppbugs::MCMCObject* createMCMC(SEXP x) {
   return ans;
 }
 
-cppbugs::MCMCObject* createDeterministic(SEXP x_) {
+cppbugs::MCMCObject* createDeterministic(SEXP x_, vpArmaMapT& armaMap) {
   cppbugs::MCMCObject* p;
   Rprintf("deterministic sexp: %p raw: %p\n",x_,rawAddress(x_));
-  ArmaContext* x_arma = getArma(x_);
+  ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
   // function should be in position 1 (excluding fun/call name)
   SEXP fun_ = Rf_getAttrib(x_,Rf_install("update.method"));
@@ -450,10 +540,10 @@ cppbugs::MCMCObject* createDeterministic(SEXP x_) {
   return p;
 }
 
-cppbugs::MCMCObject* createNormal(SEXP x_) {
+cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
   cppbugs::MCMCObject* p;
   Rprintf("normal sexp: %p raw: %p\n",x_,rawAddress(x_));
-  ArmaContext* x_arma = getArma(x_);
+  ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
   SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
   SEXP mu_ = Rf_getAttrib(x_,Rf_install("mu"));
@@ -508,10 +598,11 @@ cppbugs::MCMCObject* createNormal(SEXP x_) {
   return p;
 }
 
-cppbugs::MCMCObject* createUniform(SEXP x_) {
+cppbugs::MCMCObject* createUniform(SEXP x_,vpArmaMapT& armaMap) {
   cppbugs::MCMCObject* p;
   Rprintf("uniform sexp: %p raw: %p\n",x_,rawAddress(x_));
-  ArmaContext* x_arma = getArma(x_);
+  ArmaContext* x_arma = armaMap[rawAddress(x_)];
+  //ArmaContext* x_arma = getArma(x_);
 
   SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
   SEXP lower_ = Rf_getAttrib(x_,Rf_install("lower"));
@@ -565,78 +656,16 @@ cppbugs::MCMCObject* createUniform(SEXP x_) {
   return p;
 }
 
-
-template<typename T>
-SEXP getHistory(cppbugs::MCMCObject* node) {
-  //SEXP ans;
-  cppbugs::MCMCSpecialized<T>* sp = dynamic_cast<cppbugs::MCMCSpecialized<T>*>(node);
-  if(sp == nullptr) {
-    throw std::logic_error("invalid node conversion.");
-  }
-  Rprintf("getHistory<T> history.size(): %d\n",sp->history.size());
-  //PROTECT(ans = Rf_allocVector(VECSXP, sp->history.size()));
-  //Rcpp::List ans(sp->history.size());
-  //const size_t NC = sp->history.begin()->n_elem;
-  const size_t NC = sp->history.begin()->n_cols;
-  Rcpp::NumericMatrix ans(sp->history.size(),NC);
-  R_len_t i = 0;
-  for(typename std::list<T>::const_iterator it = sp->history.begin(); it != sp->history.end(); it++) {
-    //SET_VECTOR_ELT(ans, i, Rcpp::wrap(*it)); ++i;
-    //ans[i] = Rcpp::wrap(*it);
-    //Rprintf("%d %d",i, it->n_cols);
-    for(size_t j = 0; j < NC; j++) {
-      ans(i,j) = it->at(j);
-    }
-    ++i;
-  }
-  //UNPROTECT(1);
-  return Rcpp::wrap(ans);
-}
-
-
-template<> SEXP getHistory<arma::vec>(cppbugs::MCMCObject* node) {
-  //SEXP ans;
-  cppbugs::MCMCSpecialized<arma::vec>* sp = dynamic_cast<cppbugs::MCMCSpecialized<arma::vec>*>(node);
-  if(sp == nullptr) {
-    throw std::logic_error("invalid node conversion.");
-  }
-  Rprintf("getHistory<arma::vec> history.size(): %d\n",sp->history.size());
-  const size_t NC = sp->history.begin()->n_elem;
-  Rprintf("getHistory<arma::vec> history dim: %d\n",NC);
-  Rcpp::NumericMatrix ans(sp->history.size(),NC);
-  R_len_t i = 0;
-  for(typename std::list<arma::vec>::const_iterator it = sp->history.begin(); it != sp->history.end(); it++) {
-    for(size_t j = 0; j < NC; j++) {
-      ans(i,j) = it->at(j);
-    }
-    ++i;
-  }
-  //UNPROTECT(1);
-  return Rcpp::wrap(ans);
-}
-
-template<> SEXP getHistory<double>(cppbugs::MCMCObject* node) {
-  cppbugs::MCMCSpecialized<double>* sp = dynamic_cast<cppbugs::MCMCSpecialized<double>*>(node);
-  if(sp == nullptr) {
-    throw std::logic_error("invalid node conversion.");
-  }
-  Rprintf("getHistory<double> history.size(): %d\n",sp->history.size());
-  Rcpp::NumericVector ans(sp->history.size());
-  R_len_t i = 0;
-  for(typename std::list<double>::const_iterator it = sp->history.begin(); it != sp->history.end(); it++) {
-    ans[i] =*it; ++i;
-  }
-  return Rcpp::wrap(ans);
-}
-
-
+/*
 SEXP getHist(SEXP x_) {
   SEXP ans;
   ArmaContext* ap(NULL);
   cppbugs::MCMCObject* node(NULL);
+  vpArmaMapT armaMap;
   try {
-    ap = getArma(x_);
-    node = createMCMC(x_);
+    ArmaContext* ap = getArma(x_);
+    armaMap[rawAddress(x_)] = ap;
+    node = createMCMC(x_,armaMap);
   } catch (std::logic_error &e) {
     REprintf("%s\n",e.what());
     return R_NilValue;
@@ -666,6 +695,7 @@ SEXP getHist(SEXP x_) {
   UNPROTECT(1);
   return Rcpp::wrap(ans);
 }
+*/
 
 /*
   void appendHistory(sexpMCMCMapT& mcmc_map, sexpArmaMapT& arma_map, SEXP x) {

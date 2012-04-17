@@ -23,21 +23,19 @@
 #include <vector>
 #include <map>
 #include <exception>
-#include <boost/random.hpp>
-#include <cppbugs/mcmc.rng.hpp>
 #include <cppbugs/mcmc.object.hpp>
 #include <cppbugs/mcmc.stochastic.hpp>
+#include "mcmc.rng.hpp"
 
 namespace cppbugs {
   //typedef std::map<void*,MCMCObject*> vmc_map;
   //typedef std::map<void*,MCMCObject*>::iterator vmc_map_iter;
 
-  template<class RNG>
-  class MCModel {
+  class RMCModel {
   private:
     double accepted_;
     double rejected_;
-    SpecializedRng<RNG> rng_;
+    RNativeRng rng_;
     std::vector<MCMCObject*> mcmcObjects_;
     std::vector<MCMCObject*> dynamic_nodes;
     std::vector<Likelihiood*> logp_functors;
@@ -49,7 +47,7 @@ namespace cppbugs {
     void revert() { for(auto v : dynamic_nodes) { v->revert(); } }
     void set_scale(const double scale) { for(auto v : dynamic_nodes) { v->setScale(scale); } }
     void tally() { for(auto v : dynamic_nodes) { v->tally(); } }
-    void print() { for(auto v : mcmcObjects_) { v->print(); } }
+    //void print() { for(auto v : mcmcObjects_) { v->print(); } }
     static bool bad_logp(const double value) { return std::isnan(value) || value == -std::numeric_limits<double>::infinity() ? true : false; }
 
     void addStochcasticNode(MCMCObject* node) {
@@ -78,13 +76,14 @@ namespace cppbugs {
     }
 
     bool reject(const double value, const double old_logp) {
+      std::cout << "logp diff: " << value - old_logp << std::endl;
       return bad_logp(value) || log(rng_.uniform()) > (value - old_logp) ? true : false;
     }
 
     void tune(int iterations, int tuning_step) {
       double logp_value,old_logp_value;
-      logp_value  = -std::numeric_limits<double>::infinity();
-      old_logp_value = -std::numeric_limits<double>::infinity();
+      logp_value  = logp();
+      old_logp_value = logp_value;
 
       for(int i = 1; i <= iterations; i++) {
 	for(auto it : dynamic_nodes) {
@@ -112,13 +111,14 @@ namespace cppbugs {
 	    it->tune();
 	  }
 	}
+        tally();
       }
     }
 
     void run(int iterations, int burn, int thin) {
       double logp_value,old_logp_value;
-      logp_value  = -std::numeric_limits<double>::infinity();
-      old_logp_value = -std::numeric_limits<double>::infinity();
+      logp_value  = logp();
+      old_logp_value = logp_value;
       for(int i = 1; i <= (iterations + burn); i++) {
         //std::cout << i << std::endl;
         old_logp_value = logp_value;
@@ -128,7 +128,7 @@ namespace cppbugs {
         //getchar();
         //update();
         logp_value = logp();
-        std::cout << logp_value << std::endl;
+        std::cout << "global logp: " << logp_value << std::endl;
         if(reject(logp_value, old_logp_value)) {
           std::cout << "reverting" << std::endl;
           revert();
@@ -147,7 +147,7 @@ namespace cppbugs {
   public:
     // MCModel(std::function<void ()> update_): accepted_(0), rejected_(0), update(update_) {}
     // FIXME: use generic iteratros later...
-    MCModel(std::vector<MCMCObject*> mcmcObjects): accepted_(0), rejected_(0), mcmcObjects_(mcmcObjects) {
+    RMCModel(std::vector<MCMCObject*> mcmcObjects): accepted_(0), rejected_(0), mcmcObjects_(mcmcObjects) {
       initChain();
     }
     
@@ -183,7 +183,10 @@ namespace cppbugs {
         throw std::logic_error("ERROR: interations not a multiple of thin.");
       }
       // tuning phase
-      tune(adapt,static_cast<int>(adapt/100));
+      //std::cout  << "tuning" << std::endl;
+      //tune(adapt,static_cast<int>(adapt/100));
+
+      std::cout  << "running" << std::endl;
       // sampling
       run(iterations, burn, thin);
     }
