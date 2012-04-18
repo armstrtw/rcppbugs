@@ -7,5 +7,6 @@ export(print.mcmc.object,
        run.model,
        deterministic,
        normal,
-       uniform
+       uniform,
+       mcmc.gamma
        )

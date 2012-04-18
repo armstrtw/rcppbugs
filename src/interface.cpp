@@ -37,6 +37,7 @@
 #include "arma.context.h"
 #include "assign.normal.logp.h"
 #include "assign.uniform.logp.h"
+#include "assign.gamma.logp.h"
 #include "r.deterministic.h"
 #include "r.mcmc.model.h"
 
@@ -54,6 +55,7 @@ cppbugs::MCMCObject* createMCMC(SEXP x, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createDeterministic(SEXP args_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createNormal(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createUniform(SEXP x_, vpArmaMapT& armaMap);
+cppbugs::MCMCObject* createGamma(SEXP x_, vpArmaMapT& armaMap);
 ArmaContext* getArma(SEXP x);
 ArmaContext* mapOrFetch(SEXP x_, vpArmaMapT& armaMap);
 void initArgList(SEXP args, arglistT& arglist, const size_t skip);
@@ -319,6 +321,8 @@ cppbugs::MCMCObject* createMCMC(SEXP x_, vpArmaMapT& armaMap) {
     ans = createUniform(x_,armaMap);
     break;
   case gammaDistT:
+    ans = createGamma(x_,armaMap);
+    break;
   case betaDistT:
   case binomialDistT:
   default:
@@ -503,6 +507,61 @@ cppbugs::MCMCObject* createUniform(SEXP x_,vpArmaMapT& armaMap) {
   case imatT:
   default:
     throw std::logic_error("ERROR: uniform must be a continuous variable type (double, vec, or mat).");
+  }
+  return p;
+}
+
+cppbugs::MCMCObject* createGamma(SEXP x_, vpArmaMapT& armaMap) {
+  cppbugs::MCMCObject* p;
+  ArmaContext* x_arma = armaMap[rawAddress(x_)];
+
+  SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
+  SEXP alpha_ = Rf_getAttrib(x_,Rf_install("alpha"));
+  SEXP beta_ = Rf_getAttrib(x_,Rf_install("beta"));
+  SEXP observed_ = Rf_getAttrib(x_,Rf_install("observed"));
+
+  if(x_ == R_NilValue || env_ == R_NilValue || alpha_ == R_NilValue || beta_ == R_NilValue || observed_ == R_NilValue) {
+    REprintf("ERROR: missing argument.");
+    return NULL;
+  }
+
+  // force substitutions
+  if(TYPEOF(alpha_)==SYMSXP) { alpha_ = Rf_eval(alpha_,env_); }
+  if(TYPEOF(beta_)==SYMSXP) { beta_ = Rf_eval(beta_,env_); }
+
+  bool observed = Rcpp::as<bool>(observed_);
+
+  // map to arma types
+  ArmaContext* alpha_arma = mapOrFetch(alpha_, armaMap);
+  ArmaContext* beta_arma = mapOrFetch(beta_, armaMap);
+
+  switch(x_arma->getArmaType()) {
+  case doubleT:
+    if(observed) {
+      p = assignGammaLogp<cppbugs::ObservedGamma>(x_arma->getDouble(),alpha_arma,beta_arma);
+    } else {
+      p = assignGammaLogp<cppbugs::Gamma>(x_arma->getDouble(),alpha_arma,beta_arma);
+    }
+    break;
+  case vecT:
+    if(observed) {
+      p = assignGammaLogp<cppbugs::ObservedGamma>(x_arma->getVec(),alpha_arma,beta_arma);
+    } else {
+      p = assignGammaLogp<cppbugs::Gamma>(x_arma->getVec(),alpha_arma,beta_arma);
+    }
+    break;
+  case matT:
+    if(observed) {
+      p = assignGammaLogp<cppbugs::ObservedGamma>(x_arma->getMat(),alpha_arma,beta_arma);
+    } else {
+      p = assignGammaLogp<cppbugs::Gamma>(x_arma->getMat(),alpha_arma,beta_arma);
+    }
+    break;
+  case intT:
+  case ivecT:
+  case imatT:
+  default:
+    throw std::logic_error("ERROR: gamma must be a continuous variable type (double, vec, or mat).");
   }
   return p;
 }

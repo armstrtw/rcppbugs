@@ -85,3 +85,13 @@ uniform <- function(x,lower,upper,observed=FALSE) {
     class(x) <- "mcmc.object"
     x
 }
+
+mcmc.gamma <- function(x,alpha,beta,observed=FALSE) {
+    attr(x,"distributed") <- "gamma"
+    attr(x,"alpha") <- substitute(alpha)
+    attr(x,"beta") <- substitute(beta)
+    attr(x,"observed") <- observed
+    attr(x,"env") <- new.env()
+    class(x) <- "mcmc.object"
+    x
+}
