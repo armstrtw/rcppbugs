@@ -56,6 +56,7 @@ cppbugs::MCMCObject* createNormal(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createUniform(SEXP x_, vpArmaMapT& armaMap);
 ArmaContext* getArma(SEXP x);
 void initArgList(SEXP args, arglistT& arglist, const size_t skip);
+SEXP makeNames(std::vector<const char*>& argnames);
 
 void initArgList(SEXP args, arglistT& arglist, const size_t skip) {
 
@@ -175,6 +176,16 @@ template<> SEXP getHistory<double>(cppbugs::MCMCObject* node) {
   return Rcpp::wrap(ans);
 }
 
+SEXP makeNames(std::vector<const char*>& argnames) {
+  SEXP ans;
+  PROTECT(ans = Rf_allocVector(STRSXP, argnames.size()));
+  for(size_t i = 0; i < argnames.size(); i++) {
+    SET_STRING_ELT(ans, i, Rf_mkChar(argnames[i]));
+  }
+  UNPROTECT(1);
+  return ans;
+}
+
 SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   SEXP env_ = Rf_getAttrib(m_,Rf_install("env"));
   if(env_ == R_NilValue || TYPEOF(env_) != ENVSXP) {
@@ -187,10 +198,18 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   std::vector<ArmaContext*> armaObjects;
 
   arglistT arglist;
+  std::vector<const char*> argnames;
+
   initArgList(m_, arglist, 1);
   for(size_t i = 0; i < arglist.size(); i++) {
     // force eval of late bindings
-    if(TYPEOF(arglist[i])==SYMSXP) { arglist[i] = Rf_eval(arglist[i],env_); }
+    //if(TYPEOF(arglist[i])==SYMSXP) { arglist[i] = Rf_eval(arglist[i],env_); }
+    if(TYPEOF(arglist[i])==SYMSXP) {
+      //std::cout << TYPEOF(PRINTNAME(arglist[i])) << std::endl;
+      //std::cout << CHAR(PRINTNAME(arglist[i])) << std::endl;
+      argnames.push_back(CHAR(PRINTNAME(arglist[i])));
+      arglist[i] = Rf_eval(arglist[i],env_);
+    }
     ArmaContext* ap = getArma(arglist[i]);
     armaMap[rawAddress(arglist[i])] = ap;
     armaObjects.push_back(ap); // to delete later
@@ -235,6 +254,7 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
     }
   }
   UNPROTECT(1);
+  Rf_setAttrib(ans, R_NamesSymbol, makeNames(argnames));
   return ans;
 }
 
