@@ -31,26 +31,25 @@ class ArmaContext {
 public:
   ArmaContext(armaT armatype): armatype_(armatype) {}
   const armaT getArmaType() const { return armatype_; }
+
+  // double types
   virtual double& getDouble() { throw std::logic_error("ERROR: Arma type conversion not supported."); }
   virtual arma::vec& getVec() { throw std::logic_error("ERROR: Arma type conversion not supported."); }
   virtual arma::mat& getMat() { throw std::logic_error("ERROR: Arma type conversion not supported."); }
-  virtual void print() const = 0;
 
-  // virtual double& getDouble() const { throw std::logic_error("ERROR: Arma type conversion not supported."); double bad; return bad; }
-  // virtual arma::vec& getVec() const { throw std::logic_error("ERROR: Arma type conversion not supported."); arma::vec bad; return bad; }
-  // virtual arma::mat& getMat() const { throw std::logic_error("ERROR: Arma type conversion not supported."); arma::mat bad; return bad; }
-  // virtual int& getInt() const { throw std::logic_error("ERROR: Arma type conversion not supported."); }
-  // virtual ivec& getIVec() const { throw std::logic_error("ERROR: Arma type conversion not supported."); }
-  // virtual imat& getIMat() const { throw std::logic_error("ERROR: Arma type conversion not supported."); }
+  // int types
+  virtual int& getInt() { throw std::logic_error("ERROR: Arma type conversion not supported."); }
+  virtual arma::ivec& getiVec() { throw std::logic_error("ERROR: Arma type conversion not supported."); }
+  virtual arma::imat& getiMat() { throw std::logic_error("ERROR: Arma type conversion not supported."); }
+
+  virtual void print() const = 0;
 };
 
 class ArmaDouble : public ArmaContext {
 private:
   double& x_;
 public:
-  ArmaDouble(SEXP x_sexp): ArmaContext(doubleT), x_(REAL(x_sexp)[0]) {
-    //std::cout << "double, raw mem: " << REAL(x_sexp) << std::endl;
-  }
+  ArmaDouble(SEXP x_sexp): ArmaContext(doubleT), x_(REAL(x_sexp)[0]) {}
   double& getDouble() { return x_; }
   void print() const { std::cout << x_ << std::endl; }
 };
@@ -59,10 +58,7 @@ class ArmaVec : public ArmaContext {
 private:
   arma::vec x_;
 public:
-  //ArmaVec(SEXP x_sexp): ArmaContext(vecT), x_(Rcpp::as<arma::vec>(x_sexp)) {}
-  ArmaVec(SEXP x_sexp): ArmaContext(vecT), x_(arma::vec(REAL(x_sexp), Rf_length(x_sexp), false)) {
-    //std::cout << "vec, raw mem: " << REAL(x_sexp) << std::endl;
-  }
+  ArmaVec(SEXP x_sexp): ArmaContext(vecT), x_(arma::vec(REAL(x_sexp), Rf_length(x_sexp), false)) {}
   arma::vec& getVec() { return x_; }
   void print() const { std::cout << x_ << std::endl; }
 };
@@ -71,11 +67,36 @@ class ArmaMat : public ArmaContext {
 private:
   arma::mat x_;
 public:
-  //ArmaMat(SEXP x_sexp): ArmaContext(matT), x_(Rcpp::as<arma::mat>(x_sexp)) {}
-  ArmaMat(SEXP x_sexp): ArmaContext(matT), x_(arma::mat(REAL(x_sexp), Rf_nrows(x_sexp), Rf_ncols(x_sexp), false)) {
-    //std::cout << "mat, raw mem: " << REAL(x_sexp) << std::endl;
-  }
+  ArmaMat(SEXP x_sexp): ArmaContext(matT), x_(arma::mat(REAL(x_sexp), Rf_nrows(x_sexp), Rf_ncols(x_sexp), false)) {}
   arma::mat& getMat() { return x_; }
+  void print() const { std::cout << x_ << std::endl; }
+};
+
+
+class ArmaInt : public ArmaContext {
+private:
+  int& x_;
+public:
+  ArmaInt(SEXP x_sexp): ArmaContext(intT), x_(INTEGER(x_sexp)[0]) {}
+  int& getInt() { return x_; }
+  void print() const { std::cout << x_ << std::endl; }
+};
+
+class ArmaiVec : public ArmaContext {
+private:
+  arma::ivec x_;
+public:
+  ArmaiVec(SEXP x_sexp): ArmaContext(ivecT), x_(arma::ivec(INTEGER(x_sexp), Rf_length(x_sexp), false)) {}
+  arma::ivec& getiVec() { return x_; }
+  void print() const { std::cout << x_ << std::endl; }
+};
+
+class ArmaiMat : public ArmaContext {
+private:
+  arma::imat x_;
+public:
+  ArmaiMat(SEXP x_sexp): ArmaContext(imatT), x_(arma::imat(INTEGER(x_sexp), Rf_nrows(x_sexp), Rf_ncols(x_sexp), false)) {}
+  arma::imat& getiMat() { return x_; }
   void print() const { std::cout << x_ << std::endl; }
 };
 

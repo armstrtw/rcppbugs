@@ -38,6 +38,7 @@
 #include "assign.normal.logp.h"
 #include "assign.uniform.logp.h"
 #include "assign.gamma.logp.h"
+#include "assign.bernoulli.logp.h"
 #include "r.deterministic.h"
 #include "r.mcmc.model.h"
 
@@ -56,6 +57,8 @@ cppbugs::MCMCObject* createDeterministic(SEXP args_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createNormal(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createUniform(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createGamma(SEXP x_, vpArmaMapT& armaMap);
+cppbugs::MCMCObject* createBernoulli(SEXP x_, vpArmaMapT& armaMap);
+
 ArmaContext* getArma(SEXP x);
 ArmaContext* mapOrFetch(SEXP x_, vpArmaMapT& armaMap);
 void initArgList(SEXP args, arglistT& arglist, const size_t skip);
@@ -288,7 +291,13 @@ ArmaContext* getArma(SEXP x_) {
     break;
   case LGLSXP:
   case INTSXP:
-    throw std::logic_error("ERROR: integer type conversion not supported yet.");
+    switch(getDims(x_).size()) {
+    case 0: ap = new ArmaInt(x_); break;
+    case 1: ap = new ArmaiVec(x_); break;
+    case 2: ap = new ArmaiMat(x_); break;
+    default:
+      throw std::logic_error("ERROR: tensor conversion not supported yet.");
+    }
     break;
   default:
     throw std::logic_error("ERROR: conversion not supported.");
@@ -562,6 +571,57 @@ cppbugs::MCMCObject* createGamma(SEXP x_, vpArmaMapT& armaMap) {
   case imatT:
   default:
     throw std::logic_error("ERROR: gamma must be a continuous variable type (double, vec, or mat).");
+  }
+  return p;
+}
+
+cppbugs::MCMCObject* createBernoulli(SEXP x_, vpArmaMapT& armaMap) {
+  cppbugs::MCMCObject* p;
+  ArmaContext* x_arma = armaMap[rawAddress(x_)];
+
+  SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
+  SEXP p_ = Rf_getAttrib(x_,Rf_install("p"));
+  SEXP observed_ = Rf_getAttrib(x_,Rf_install("observed"));
+
+  if(x_ == R_NilValue || env_ == R_NilValue || p_ == R_NilValue || observed_ == R_NilValue) {
+    REprintf("ERROR: missing argument.");
+    return NULL;
+  }
+
+  // force substitutions
+  if(TYPEOF(p_)==SYMSXP) { p_ = Rf_eval(p_,env_); }
+  bool observed = Rcpp::as<bool>(observed_);
+
+  // map to arma types
+  ArmaContext* p_arma = mapOrFetch(p_, armaMap);
+
+  switch(x_arma->getArmaType()) {
+  case intT:
+    if(observed) {
+      p = assignBernoulliLogp<cppbugs::ObservedBernoulli>(x_arma->getInt(),p_arma);
+    } else {
+      p = assignBernoulliLogp<cppbugs::Bernoulli>(x_arma->getInt(),p_arma);
+    }
+    break;
+  case ivecT:
+    if(observed) {
+      p = assignBernoulliLogp<cppbugs::ObservedBernoulli>(x_arma->getiVec(),p_arma);
+    } else {
+      p = assignBernoulliLogp<cppbugs::Bernoulli>(x_arma->getiVec(),p_arma);
+    }
+    break;
+  case imatT:
+    if(observed) {
+      p = assignBernoulliLogp<cppbugs::ObservedBernoulli>(x_arma->getiMat(),p_arma);
+    } else {
+      p = assignBernoulliLogp<cppbugs::Bernoulli>(x_arma->getiMat(),p_arma);
+    }
+    break;
+  case doubleT:
+  case vecT:
+  case matT:
+  default:
+    throw std::logic_error("ERROR: bernoulli must be an integer variable type.");
   }
   return p;
 }
