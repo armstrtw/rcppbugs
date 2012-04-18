@@ -19,7 +19,7 @@
 #define ASSIGN_GAMMA_LOGP_H
 
 #include "arma.context.h"
-#include <cppbugs/mcmc.normal.hpp>
+#include <cppbugs/mcmc.gamma.hpp>
 
 template<template<typename> class MCTYPE, typename T>
 MCTYPE<T>* assignGammaLogp(T& x, ArmaContext* alpha, ArmaContext* beta) {
@@ -34,7 +34,7 @@ MCTYPE<T>* assignGammaLogp(T& x, ArmaContext* alpha, ArmaContext* beta) {
   else if(alpha->getArmaType() == doubleT && beta->getArmaType() == matT) { node->dgamma(alpha->getDouble(),beta->getMat()); }
   else if(alpha->getArmaType() == vecT && beta->getArmaType() == matT) { node->dgamma(alpha->getVec(),beta->getMat()); }
   else if(alpha->getArmaType() == matT && beta->getArmaType() == matT) { node->dgamma(alpha->getMat(),beta->getMat()); }
-  else { throw std::logic_error("ERROR: invalid type used in normal distribution."); }
+  else { throw std::logic_error("ERROR: invalid type used in gamma distribution."); }
 
   return node;
 }

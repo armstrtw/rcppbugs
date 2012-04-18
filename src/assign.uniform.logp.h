@@ -34,7 +34,7 @@ MCTYPE<T>* assignUniformLogp(T& x, ArmaContext* lower, ArmaContext* upper) {
   else if(lower->getArmaType() == doubleT && upper->getArmaType() == matT) { node->dunif(lower->getDouble(),upper->getMat()); }
   else if(lower->getArmaType() == vecT && upper->getArmaType() == matT) { node->dunif(lower->getVec(),upper->getMat()); }
   else if(lower->getArmaType() == matT && upper->getArmaType() == matT) { node->dunif(lower->getMat(),upper->getMat()); }
-  else { throw std::logic_error("ERROR: invalid type used in normal distribution."); }
+  else { throw std::logic_error("ERROR: invalid type used in uniform distribution."); }
 
   return node;
 }
