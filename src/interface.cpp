@@ -57,6 +57,7 @@ cppbugs::MCMCObject* createUniform(SEXP x_, vpArmaMapT& armaMap);
 ArmaContext* getArma(SEXP x);
 void initArgList(SEXP args, arglistT& arglist, const size_t skip);
 SEXP makeNames(std::vector<const char*>& argnames);
+SEXP createTrace(arglistT& arglist, vpArmaMapT& armaMap, vpMCMCMapT& mcmcMap);
 
 void initArgList(SEXP args, arglistT& arglist, const size_t skip) {
 
@@ -193,6 +194,31 @@ void releaseMap(T& m) {
   }
 }
 
+SEXP createTrace(arglistT& arglist, vpArmaMapT& armaMap, vpMCMCMapT& mcmcMap) {
+  SEXP ans; PROTECT(ans = Rf_allocVector(VECSXP, arglist.size()));
+  for(size_t i = 0; i < arglist.size(); i++) {
+    ArmaContext* ap = armaMap[rawAddress(arglist[i])];
+    cppbugs::MCMCObject* node = mcmcMap[rawAddress(arglist[i])];
+    if(!node->isObserved()) {
+      switch(ap->getArmaType()) {
+      case doubleT:
+        SET_VECTOR_ELT(ans,i,getHistory<double>(node));
+        break;
+      case vecT:
+        SET_VECTOR_ELT(ans,i,getHistory<arma::vec>(node));
+        break;
+      case matT:
+      default:
+        SET_VECTOR_ELT(ans,i,R_NilValue);
+      }
+    } else {
+      SET_VECTOR_ELT(ans,i,R_NilValue);
+    }
+  }
+  UNPROTECT(1);
+  return ans;
+}
+
 SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   SEXP env_ = Rf_getAttrib(m_,Rf_install("env"));
   if(env_ == R_NilValue || TYPEOF(env_) != ENVSXP) {
@@ -225,7 +251,6 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   int adapt_ = Rcpp::as<int>(adapt);
   int thin_ = Rcpp::as<int>(thin);
 
-
   try {
     cppbugs::RMCModel m(mcmcObjects);
     m.sample(iterations_, burn_in_, adapt_, thin_);
@@ -237,27 +262,8 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
     return R_NilValue;
   }
 
-  SEXP ans; PROTECT(ans = Rf_allocVector(VECSXP, arglist.size()));
-  for(size_t i = 0; i < arglist.size(); i++) {
-    ArmaContext* ap = armaMap[rawAddress(arglist[i])];
-    cppbugs::MCMCObject* node = mcmcMap[rawAddress(arglist[i])];
-    if(!node->isObserved()) {
-      switch(ap->getArmaType()) {
-      case doubleT:
-        SET_VECTOR_ELT(ans,i,getHistory<double>(node));
-        break;
-      case vecT:
-        SET_VECTOR_ELT(ans,i,getHistory<arma::vec>(node));
-        break;
-      case matT:
-      default:
-        SET_VECTOR_ELT(ans,i,R_NilValue);
-      }
-    } else {
-      SET_VECTOR_ELT(ans,i,R_NilValue);
-    }
-  }
-
+  SEXP ans;
+  PROTECT(ans = createTrace(arglist,armaMap,mcmcMap));
   releaseMap(armaMap);
   releaseMap(mcmcMap);
   UNPROTECT(1);
