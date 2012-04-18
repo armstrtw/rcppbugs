@@ -202,7 +202,6 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   vpArmaMapT armaMap;
   vpMCMCMapT mcmcMap;
   std::vector<cppbugs::MCMCObject*> mcmcObjects;
-  std::vector<ArmaContext*> armaObjects;
 
   arglistT arglist;
   std::vector<const char*> argnames;
@@ -216,7 +215,6 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
     }
     ArmaContext* ap = getArma(arglist[i]);
     armaMap[rawAddress(arglist[i])] = ap;
-    armaObjects.push_back(ap); // to delete later
     cppbugs::MCMCObject* node = createMCMC(arglist[i],armaMap);
     mcmcMap[rawAddress(arglist[i])] = node;
     mcmcObjects.push_back(node);
@@ -233,6 +231,8 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
     m.sample(iterations_, burn_in_, adapt_, thin_);
     std::cout << "acceptance_ratio: " << m.acceptance_ratio() << std::endl;
   } catch (std::logic_error &e) {
+    releaseMap(armaMap);
+    releaseMap(mcmcMap);
     REprintf("%s\n",e.what());
     return R_NilValue;
   }
@@ -398,8 +398,9 @@ cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
   bool observed = Rcpp::as<bool>(observed_);
 
   // map to arma types
-  ArmaContext* mu_arma = getArma(mu_);  //Rprintf("mu addr: %p\n",rawAddress(mu_));
-  ArmaContext* tau_arma = getArma(tau_); //Rprintf("tau addr: %p\n",rawAddress(tau_));
+  // these need to be in the armaMap to get cleaned up later
+  ArmaContext* mu_arma = getArma(mu_);  armaMap[rawAddress(mu_)] = mu_arma;
+  ArmaContext* tau_arma = getArma(tau_); armaMap[rawAddress(tau_)] = tau_arma;
 
   switch(x_arma->getArmaType()) {
   case doubleT:
@@ -453,9 +454,9 @@ cppbugs::MCMCObject* createUniform(SEXP x_,vpArmaMapT& armaMap) {
   bool observed = Rcpp::as<bool>(observed_);
 
   // map to arma types
-  // FIXME: delete later...
-  ArmaContext* lower_arma = getArma(lower_);
-  ArmaContext* upper_arma = getArma(upper_);
+  // these need to be in the armaMap to get cleaned up later
+  ArmaContext* lower_arma = getArma(lower_); armaMap[rawAddress(lower_)] = lower_arma;
+  ArmaContext* upper_arma = getArma(upper_); armaMap[rawAddress(upper_)] = upper_arma;
 
   switch(x_arma->getArmaType()) {
   case doubleT:
