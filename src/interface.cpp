@@ -266,8 +266,8 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   PROTECT(ans = createTrace(arglist,armaMap,mcmcMap));
   releaseMap(armaMap);
   releaseMap(mcmcMap);
-  UNPROTECT(1);
   Rf_setAttrib(ans, R_NamesSymbol, makeNames(argnames));
+  UNPROTECT(1);
   return ans;
 }
 
