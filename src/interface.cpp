@@ -55,6 +55,7 @@ cppbugs::MCMCObject* createDeterministic(SEXP args_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createNormal(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createUniform(SEXP x_, vpArmaMapT& armaMap);
 ArmaContext* getArma(SEXP x);
+ArmaContext* mapOrFetch(SEXP x_, vpArmaMapT& armaMap);
 void initArgList(SEXP args, arglistT& arglist, const size_t skip);
 SEXP makeNames(std::vector<const char*>& argnames);
 SEXP createTrace(arglistT& arglist, vpArmaMapT& armaMap, vpMCMCMapT& mcmcMap);
@@ -381,6 +382,19 @@ cppbugs::MCMCObject* createDeterministic(SEXP x_, vpArmaMapT& armaMap) {
   return p;
 }
 
+ArmaContext* mapOrFetch(SEXP x_, vpArmaMapT& armaMap) {
+  ArmaContext* x_arma(NULL);
+  void* vp = rawAddress(x_);
+
+  if(armaMap.count(vp)==0) {
+    x_arma = getArma(x_);
+    armaMap[vp] = x_arma;
+  } else {
+    x_arma = armaMap[vp];
+  }
+  return x_arma;
+}
+
 cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
   cppbugs::MCMCObject* p;
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
@@ -404,9 +418,8 @@ cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
   bool observed = Rcpp::as<bool>(observed_);
 
   // map to arma types
-  // these need to be in the armaMap to get cleaned up later
-  ArmaContext* mu_arma = getArma(mu_);  armaMap[rawAddress(mu_)] = mu_arma;
-  ArmaContext* tau_arma = getArma(tau_); armaMap[rawAddress(tau_)] = tau_arma;
+  ArmaContext* mu_arma = mapOrFetch(mu_, armaMap);
+  ArmaContext* tau_arma = mapOrFetch(tau_, armaMap);
 
   switch(x_arma->getArmaType()) {
   case doubleT:
@@ -460,9 +473,8 @@ cppbugs::MCMCObject* createUniform(SEXP x_,vpArmaMapT& armaMap) {
   bool observed = Rcpp::as<bool>(observed_);
 
   // map to arma types
-  // these need to be in the armaMap to get cleaned up later
-  ArmaContext* lower_arma = getArma(lower_); armaMap[rawAddress(lower_)] = lower_arma;
-  ArmaContext* upper_arma = getArma(upper_); armaMap[rawAddress(upper_)] = upper_arma;
+  ArmaContext* lower_arma = mapOrFetch(lower_, armaMap);
+  ArmaContext* upper_arma = mapOrFetch(upper_, armaMap);
 
   switch(x_arma->getArmaType()) {
   case doubleT:
