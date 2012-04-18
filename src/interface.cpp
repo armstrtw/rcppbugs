@@ -186,6 +186,13 @@ SEXP makeNames(std::vector<const char*>& argnames) {
   return ans;
 }
 
+template<typename T>
+void releaseMap(T& m) {
+  for (typename T::iterator it=m.begin(); it != m.end(); it++) {
+    delete it->second;
+  }
+}
+
 SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   SEXP env_ = Rf_getAttrib(m_,Rf_install("env"));
   if(env_ == R_NilValue || TYPEOF(env_) != ENVSXP) {
@@ -203,10 +210,7 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   initArgList(m_, arglist, 1);
   for(size_t i = 0; i < arglist.size(); i++) {
     // force eval of late bindings
-    //if(TYPEOF(arglist[i])==SYMSXP) { arglist[i] = Rf_eval(arglist[i],env_); }
     if(TYPEOF(arglist[i])==SYMSXP) {
-      //std::cout << TYPEOF(PRINTNAME(arglist[i])) << std::endl;
-      //std::cout << CHAR(PRINTNAME(arglist[i])) << std::endl;
       argnames.push_back(CHAR(PRINTNAME(arglist[i])));
       arglist[i] = Rf_eval(arglist[i],env_);
     }
@@ -253,6 +257,9 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
       SET_VECTOR_ELT(ans,i,R_NilValue);
     }
   }
+
+  releaseMap(armaMap);
+  releaseMap(mcmcMap);
   UNPROTECT(1);
   Rf_setAttrib(ans, R_NamesSymbol, makeNames(argnames));
   return ans;
@@ -280,25 +287,29 @@ ArmaContext* getArma(SEXP x_) {
   return ap;
 }
 
-cppbugs::MCMCObject* createMCMC(SEXP x, vpArmaMapT& armaMap) {
+cppbugs::MCMCObject* createMCMC(SEXP x_, vpArmaMapT& armaMap) {
   SEXP distributed_sexp;
-  distributed_sexp = Rf_getAttrib(x,Rf_install("distributed"));
+  distributed_sexp = Rf_getAttrib(x_,Rf_install("distributed"));
   if(distributed_sexp == R_NilValue) {
-    throw std::logic_error("ERROR: 'distributed' attribute not defined. Is this a stochastic variable?");
+    throw std::logic_error("ERROR: 'distributed' attribute not defined. Is this an mcmc.object?");
   }
-  distT distributed = matchDistibution(std::string(CHAR(STRING_ELT(distributed_sexp,0))));
 
+  if(armaMap.count(rawAddress(x_))==0) {
+    throw std::logic_error("ArmaContext not found (object should be mapped before call to createMCMC).");
+  }
+
+  distT distributed = matchDistibution(std::string(CHAR(STRING_ELT(distributed_sexp,0))));
   cppbugs::MCMCObject* ans;
 
   switch(distributed) {
   case deterministicT:
-    ans = createDeterministic(x,armaMap);
+    ans = createDeterministic(x_,armaMap);
     break;
   case normalDistT:
-    ans = createNormal(x,armaMap);
+    ans = createNormal(x_,armaMap);
     break;
   case uniformDistT:
-    ans = createUniform(x,armaMap);
+    ans = createUniform(x_,armaMap);
     break;
   case gammaDistT:
   case betaDistT:
@@ -312,7 +323,6 @@ cppbugs::MCMCObject* createMCMC(SEXP x, vpArmaMapT& armaMap) {
 
 cppbugs::MCMCObject* createDeterministic(SEXP x_, vpArmaMapT& armaMap) {
   cppbugs::MCMCObject* p;
-  //Rprintf("deterministic sexp: %p raw: %p\n",x_,rawAddress(x_));
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
   // function should be in position 1 (excluding fun/call name)
@@ -367,7 +377,6 @@ cppbugs::MCMCObject* createDeterministic(SEXP x_, vpArmaMapT& armaMap) {
 
 cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
   cppbugs::MCMCObject* p;
-  //Rprintf("normal sexp: %p raw: %p\n",x_,rawAddress(x_));
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
   SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
@@ -425,9 +434,7 @@ cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
 
 cppbugs::MCMCObject* createUniform(SEXP x_,vpArmaMapT& armaMap) {
   cppbugs::MCMCObject* p;
-  //Rprintf("uniform sexp: %p raw: %p\n",x_,rawAddress(x_));
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
-  //ArmaContext* x_arma = getArma(x_);
 
   SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
   SEXP lower_ = Rf_getAttrib(x_,Rf_install("lower"));

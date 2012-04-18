@@ -83,7 +83,7 @@ namespace cppbugs {
       UNPROTECT(1);
       //std::cout << "RDeterministic new value:"  << std::endl << Dynamic<T>::value << std::endl;
     }
-    ~RDeterministic() { UNPROTECT(1); }
+    ~RDeterministic() {}
     RDeterministic(T& value, SEXP fun, arglistT args): Dynamic<T>(value), fun_(fun), args_(args) {}
 
     void accept() {}
