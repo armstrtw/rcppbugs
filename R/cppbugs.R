@@ -15,6 +15,17 @@
 ## along with this program.  If not, see <http:##www.gnu.org#licenses#>. ##
 ###########################################################################
 
+print.mcmc.object <- function(x) {
+
+    x <- unclass(x)
+    xd <- dim(x)
+    attributes(x) <- NULL
+    if(!is.null(xd)) {
+        dim(x) <- xd
+    }
+    print.default(x)
+}
+
 logp <- function(x) {
     .Call("logp",x,PACKAGE="RCppBugs")
 }
@@ -34,6 +45,7 @@ jump <- function(x) {
 create.model <- function(...) {
     m <- match.call()
     attr(m,"env") <- new.env()
+    class(m) <- "mcmc.model"
     m
 }
 
@@ -50,6 +62,7 @@ deterministic <- function(f,...) {
     attr(x,"update.method") <- compiler::compile(f)
     attr(x,"call") <- mc
     attr(x,"env") <- new.env()
+    class(x) <- "mcmc.object"
     x
 }
 
@@ -59,6 +72,7 @@ normal <- function(x,mu,tau,observed=FALSE) {
     attr(x,"tau") <- substitute(tau)
     attr(x,"observed") <- observed
     attr(x,"env") <- new.env()
+    class(x) <- "mcmc.object"
     x
 }
 
@@ -68,5 +82,6 @@ uniform <- function(x,lower,upper,observed=FALSE) {
     attr(x,"upper") <- substitute(upper)
     attr(x,"observed") <- observed
     attr(x,"env") <- new.env()
+    class(x) <- "mcmc.object"
     x
 }

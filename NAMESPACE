@@ -1,6 +1,7 @@
 useDynLib(RCppBugs)
 
-export(create.model,
+export(print.mcmc.object,
+       create.model,
        logp,
        jump,
        run.model,
