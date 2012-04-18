@@ -1,4 +1,4 @@
-useDynLib(RCppBugs)
+useDynLib(rcppbugs)
 
 export(print.mcmc.object,
        create.model,

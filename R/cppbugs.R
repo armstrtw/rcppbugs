@@ -27,19 +27,19 @@ print.mcmc.object <- function(x) {
 }
 
 logp <- function(x) {
-    .Call("logp",x,PACKAGE="RCppBugs")
+    .Call("logp",x,PACKAGE="rcppbugs")
 }
 
 jump <- function(x) {
-    invisible(.Call("jump",x,PACKAGE="RCppBugs"))
+    invisible(.Call("jump",x,PACKAGE="rcppbugs"))
 }
 
 ## print.mcmc <- function(x) {
-##     invisible(.Call("printMCMC",x,PACKAGE="RCppBugs"))
+##     invisible(.Call("printMCMC",x,PACKAGE="rcppbugs"))
 ## }
 
 ## print.arma <- function(x) {
-##     invisible(.Call("printArma",x,PACKAGE="RCppBugs"))
+##     invisible(.Call("printArma",x,PACKAGE="rcppbugs"))
 ## }
 
 create.model <- function(...) {
@@ -50,7 +50,7 @@ create.model <- function(...) {
 }
 
 run.model <- function(m, iterations, burn, adapt, thin) {
-    .Call("runModel", m, iterations, burn, adapt, thin, PACKAGE="RCppBugs")
+    .Call("runModel", m, iterations, burn, adapt, thin, PACKAGE="rcppbugs")
 }
 
 deterministic <- function(f,...) {
