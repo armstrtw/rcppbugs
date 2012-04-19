@@ -41,6 +41,7 @@
 #include "assign.bernoulli.logp.h"
 #include "assign.binomial.logp.h"
 #include "r.deterministic.h"
+#include "linear.deterministic.h"
 #include "r.mcmc.model.h"
 
 typedef std::map<void*,ArmaContext*> vpArmaMapT;
@@ -55,6 +56,7 @@ extern "C" SEXP runModel(SEXP mp_, SEXP iterations, SEXP burn_in, SEXP adapt, SE
 // private methods
 cppbugs::MCMCObject* createMCMC(SEXP x, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createDeterministic(SEXP args_, vpArmaMapT& armaMap);
+cppbugs::MCMCObject* createLinearDeterministic(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createNormal(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createUniform(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createGamma(SEXP x_, vpArmaMapT& armaMap);
@@ -77,6 +79,19 @@ void initArgList(SEXP args, arglistT& arglist, const size_t skip) {
   for(; args != R_NilValue; args = CDR(args)) {
     arglist.push_back(CAR(args));
   }
+}
+
+ArmaContext* mapOrFetch(SEXP x_, vpArmaMapT& armaMap) {
+  ArmaContext* x_arma(NULL);
+  void* vp = rawAddress(x_);
+
+  if(armaMap.count(vp)==0) {
+    x_arma = getArma(x_);
+    armaMap[vp] = x_arma;
+  } else {
+    x_arma = armaMap[vp];
+  }
+  return x_arma;
 }
 
 SEXP logp(SEXP x_) {
@@ -326,7 +341,9 @@ cppbugs::MCMCObject* createMCMC(SEXP x_, vpArmaMapT& armaMap) {
   case deterministicT:
     ans = createDeterministic(x_,armaMap);
     break;
-
+  case linearDeterministicT:
+    ans = createLinearDeterministic(x_,armaMap);
+    break;
     // continuous types
   case normalDistT:
     ans = createNormal(x_,armaMap);
@@ -407,17 +424,43 @@ cppbugs::MCMCObject* createDeterministic(SEXP x_, vpArmaMapT& armaMap) {
   return p;
 }
 
-ArmaContext* mapOrFetch(SEXP x_, vpArmaMapT& armaMap) {
-  ArmaContext* x_arma(NULL);
-  void* vp = rawAddress(x_);
+cppbugs::MCMCObject* createLinearDeterministic(SEXP x_, vpArmaMapT& armaMap) {
+  cppbugs::MCMCObject* p;
+  ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
-  if(armaMap.count(vp)==0) {
-    x_arma = getArma(x_);
-    armaMap[vp] = x_arma;
-  } else {
-    x_arma = armaMap[vp];
+  SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
+  SEXP X_ = Rf_getAttrib(x_,Rf_install("X"));
+  SEXP b_ = Rf_getAttrib(x_,Rf_install("b"));
+
+  if(x_ == R_NilValue || env_ == R_NilValue || X_ == R_NilValue || b_ == R_NilValue) {
+    throw std::logic_error("ERROR: createLinearDeterministic, missing or null argument.");
   }
-  return x_arma;
+
+  // force substitutions
+  if(TYPEOF(X_)==SYMSXP) { X_ = Rf_eval(X_,env_); }
+  if(TYPEOF(b_)==SYMSXP) { b_ = Rf_eval(b_,env_); }
+
+  // map to arma types
+  ArmaContext* X_arma = mapOrFetch(X_, armaMap);
+  ArmaContext* b_arma = mapOrFetch(b_, armaMap);
+
+  // little x
+  if(x_arma->getArmaType() != matT) {
+    throw std::logic_error("ERROR: createLinearDeterministic, x must be a matrix.");
+  }
+
+  // big X
+  if(X_arma->getArmaType() != matT) {
+    throw std::logic_error("ERROR: createLinearDeterministic, X must be a matrix.");
+  }
+
+  // b -- coefs vector
+  if(b_arma->getArmaType() != vecT) {
+    throw std::logic_error("ERROR: createLinearDeterministic, b must be a vector.");
+  }
+
+  p = new cppbugs::LinearDeterministic(x_arma->getMat(),X_arma->getMat(),b_arma->getVec());
+  return p;
 }
 
 cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
@@ -432,8 +475,7 @@ cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
   //Rprintf("typeof mu: %d\n",TYPEOF(mu_));
 
   if(x_ == R_NilValue || env_ == R_NilValue || mu_ == R_NilValue || tau_ == R_NilValue || observed_ == R_NilValue) {
-    REprintf("ERROR: missing argument.");
-    return NULL;
+    throw std::logic_error("ERROR: createNormal, missing or null argument.");
   }
 
   // force substitutions
