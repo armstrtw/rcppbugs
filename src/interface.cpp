@@ -322,9 +322,12 @@ cppbugs::MCMCObject* createMCMC(SEXP x_, vpArmaMapT& armaMap) {
   cppbugs::MCMCObject* ans;
 
   switch(distributed) {
+    // deterministic types
   case deterministicT:
     ans = createDeterministic(x_,armaMap);
     break;
+
+    // continuous types
   case normalDistT:
     ans = createNormal(x_,armaMap);
     break;
@@ -334,12 +337,14 @@ cppbugs::MCMCObject* createMCMC(SEXP x_, vpArmaMapT& armaMap) {
   case gammaDistT:
     ans = createGamma(x_,armaMap);
     break;
+    // discrete types
   case bernoulliDistT:
     ans = createBernoulli(x_,armaMap);
     break;
   case binomialDistT:
     ans = createBinomial(x_,armaMap);
     break;
+    // not implemented
   case betaDistT:
   default:
     ans = NULL;
