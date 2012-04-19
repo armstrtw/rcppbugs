@@ -54,11 +54,18 @@ std::vector<R_len_t> getDims(SEXP x) {
 
 distMapT initDistributions() {
   distMapT ans;
+
+  // deterministic types
   ans["deterministic"] = deterministicT;
+
+  // continuous types
   ans["normal"] = normalDistT;
   ans["uniform"] = uniformDistT;
   ans["gamma"] = gammaDistT;
   ans["beta"] = betaDistT;
+
+  // discrete types
+  ans["bernoulli"] = bernoulliDistT;
   ans["binomial"] = binomialDistT;
   return ans;
 }

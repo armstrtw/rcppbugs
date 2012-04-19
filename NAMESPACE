@@ -8,5 +8,7 @@ export(print.mcmc.object,
        deterministic,
        normal,
        uniform,
-       mcmc.gamma
+       mcmc.gamma,
+       mcmc.bernoulli,
+       mcmc.binomial
        )

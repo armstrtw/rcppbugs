@@ -19,6 +19,8 @@
 #ifndef DISTRIBUTION_TYPES_H
 #define DISTRIBUTION_TYPES_H
 
-enum distT { deterministicT, normalDistT, uniformDistT, gammaDistT, betaDistT, binomialDistT };
+enum distT { /*deterministic*/ deterministicT, // linearT, logisticT (FIXME: shortcuts for arma fast methods)
+             /*continuous*/ normalDistT, uniformDistT, gammaDistT, betaDistT,
+             /*discrete*/ bernoulliDistT, binomialDistT };
 
 #endif // DISTRIBUTION_TYPES_H

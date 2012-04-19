@@ -39,6 +39,7 @@
 #include "assign.uniform.logp.h"
 #include "assign.gamma.logp.h"
 #include "assign.bernoulli.logp.h"
+#include "assign.binomial.logp.h"
 #include "r.deterministic.h"
 #include "r.mcmc.model.h"
 
@@ -58,6 +59,7 @@ cppbugs::MCMCObject* createNormal(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createUniform(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createGamma(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createBernoulli(SEXP x_, vpArmaMapT& armaMap);
+cppbugs::MCMCObject* createBinomial(SEXP x_, vpArmaMapT& armaMap);
 
 ArmaContext* getArma(SEXP x);
 ArmaContext* mapOrFetch(SEXP x_, vpArmaMapT& armaMap);
@@ -332,8 +334,13 @@ cppbugs::MCMCObject* createMCMC(SEXP x_, vpArmaMapT& armaMap) {
   case gammaDistT:
     ans = createGamma(x_,armaMap);
     break;
-  case betaDistT:
+  case bernoulliDistT:
+    ans = createBernoulli(x_,armaMap);
+    break;
   case binomialDistT:
+    ans = createBinomial(x_,armaMap);
+    break;
+  case betaDistT:
   default:
     ans = NULL;
     throw std::logic_error("ERROR: distribution not supported yet.");
@@ -622,6 +629,66 @@ cppbugs::MCMCObject* createBernoulli(SEXP x_, vpArmaMapT& armaMap) {
   case matT:
   default:
     throw std::logic_error("ERROR: bernoulli must be an integer variable type.");
+  }
+  return p;
+}
+
+cppbugs::MCMCObject* createBinomial(SEXP x_, vpArmaMapT& armaMap) {
+  cppbugs::MCMCObject* p;
+  ArmaContext* x_arma = armaMap[rawAddress(x_)];
+
+  SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
+  SEXP n_ = Rf_getAttrib(x_,Rf_install("n"));
+  SEXP p_ = Rf_getAttrib(x_,Rf_install("p"));
+  SEXP observed_ = Rf_getAttrib(x_,Rf_install("observed"));
+
+  if(x_ == R_NilValue || env_ == R_NilValue || n_ == R_NilValue || p_ == R_NilValue || observed_ == R_NilValue) {
+    REprintf("ERROR: missing argument.");
+    return NULL;
+  }
+
+  // force substitutions
+  if(TYPEOF(n_)==SYMSXP) { n_ = Rf_eval(n_,env_); }
+  if(TYPEOF(p_)==SYMSXP) { p_ = Rf_eval(p_,env_); }
+
+  bool observed = Rcpp::as<bool>(observed_);
+
+  // map to arma types
+  ArmaContext* n_arma = mapOrFetch(n_, armaMap);
+  ArmaContext* p_arma = mapOrFetch(p_, armaMap);
+
+  armaT p_arma_type = p_arma->getArmaType();
+  if(p_arma_type == intT || p_arma_type == ivecT || p_arma_type == imatT) {
+    throw std::logic_error("ERROR: binomial hyperparameter p must be a continuous variable type (double, vec, or mat).");
+  }
+
+  switch(x_arma->getArmaType()) {
+  case intT:
+    if(observed) {
+      p = assignBinomialLogp<cppbugs::ObservedBinomial>(x_arma->getInt(),n_arma,p_arma);
+    } else {
+      p = assignBinomialLogp<cppbugs::Binomial>(x_arma->getInt(),n_arma,p_arma);
+    }
+    break;
+  case ivecT:
+    if(observed) {
+      p = assignBinomialLogp<cppbugs::ObservedBinomial>(x_arma->getiVec(),n_arma,p_arma);
+    } else {
+      p = assignBinomialLogp<cppbugs::Binomial>(x_arma->getiVec(),n_arma,p_arma);
+    }
+    break;
+  case imatT:
+    if(observed) {
+      p = assignBinomialLogp<cppbugs::ObservedBinomial>(x_arma->getiMat(),n_arma,p_arma);
+    } else {
+      p = assignBinomialLogp<cppbugs::Binomial>(x_arma->getiMat(),n_arma,p_arma);
+    }
+    break;
+  case doubleT:
+  case vecT:
+  case matT:
+  default:
+    throw std::logic_error("ERROR: binomial must be an integer variable type.");
   }
   return p;
 }

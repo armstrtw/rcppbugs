@@ -95,3 +95,22 @@ mcmc.gamma <- function(x,alpha,beta,observed=FALSE) {
     class(x) <- "mcmc.object"
     x
 }
+
+mcmc.bernoulli <- function(x,p,observed=FALSE) {
+    attr(x,"distributed") <- "bernoulli"
+    attr(x,"p") <- substitute(p)
+    attr(x,"observed") <- observed
+    attr(x,"env") <- new.env()
+    class(x) <- "mcmc.object"
+    x
+}
+
+mcmc.binomial <- function(x,n,p,observed=FALSE) {
+    attr(x,"distributed") <- "binomial"
+    attr(x,"n") <- substitute(n)
+    attr(x,"p") <- substitute(p)
+    attr(x,"observed") <- observed
+    attr(x,"env") <- new.env()
+    class(x) <- "mcmc.object"
+    x
+}
