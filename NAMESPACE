@@ -6,9 +6,9 @@ export(print.mcmc.object,
        jump,
        run.model,
        deterministic,
-       normal,
-       uniform,
-       mcmc.gamma,
-       mcmc.bernoulli,
-       mcmc.binomial
+       normal.dist,
+       uniform.dist,
+       gamma.dist,
+       bernoulli.dist,
+       binomial.dist
        )

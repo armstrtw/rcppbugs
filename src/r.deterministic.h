@@ -68,6 +68,9 @@ namespace cppbugs {
       case 3:
         PROTECT(r_call = Rf_lang4(fun, args[0], args[1], args[2]));
         break;
+      case 4:
+        PROTECT(r_call = Rf_lang5(fun, args[0], args[1], args[2], args[3]));
+        break;
       default:
         throw std::logic_error("ERROR: too many arguments to deterministic function.");
       }

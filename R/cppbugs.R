@@ -66,7 +66,7 @@ deterministic <- function(f,...) {
     x
 }
 
-normal <- function(x,mu,tau,observed=FALSE) {
+normal.dist <- function(x,mu,tau,observed=FALSE) {
     attr(x,"distributed") <- "normal"
     attr(x,"mu") <- substitute(mu)
     attr(x,"tau") <- substitute(tau)
@@ -76,7 +76,7 @@ normal <- function(x,mu,tau,observed=FALSE) {
     x
 }
 
-uniform <- function(x,lower,upper,observed=FALSE) {
+uniform.dist <- function(x,lower,upper,observed=FALSE) {
     attr(x,"distributed") <- "uniform"
     attr(x,"lower") <- substitute(lower)
     attr(x,"upper") <- substitute(upper)
@@ -86,7 +86,7 @@ uniform <- function(x,lower,upper,observed=FALSE) {
     x
 }
 
-mcmc.gamma <- function(x,alpha,beta,observed=FALSE) {
+gamma.dist <- function(x,alpha,beta,observed=FALSE) {
     attr(x,"distributed") <- "gamma"
     attr(x,"alpha") <- substitute(alpha)
     attr(x,"beta") <- substitute(beta)
@@ -96,7 +96,7 @@ mcmc.gamma <- function(x,alpha,beta,observed=FALSE) {
     x
 }
 
-mcmc.bernoulli <- function(x,p,observed=FALSE) {
+bernoulli.dist <- function(x,p,observed=FALSE) {
     attr(x,"distributed") <- "bernoulli"
     attr(x,"p") <- substitute(p)
     attr(x,"observed") <- observed
@@ -105,7 +105,7 @@ mcmc.bernoulli <- function(x,p,observed=FALSE) {
     x
 }
 
-mcmc.binomial <- function(x,n,p,observed=FALSE) {
+binomial.dist <- function(x,n,p,observed=FALSE) {
     attr(x,"distributed") <- "binomial"
     attr(x,"n") <- substitute(n)
     attr(x,"p") <- substitute(p)
