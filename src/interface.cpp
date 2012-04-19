@@ -657,38 +657,44 @@ cppbugs::MCMCObject* createBinomial(SEXP x_, vpArmaMapT& armaMap) {
   ArmaContext* n_arma = mapOrFetch(n_, armaMap);
   ArmaContext* p_arma = mapOrFetch(p_, armaMap);
 
+  armaT n_arma_type = n_arma->getArmaType();
+  if(n_arma_type == intT || n_arma_type == ivecT || n_arma_type == imatT) {
+    throw std::logic_error("ERROR: binomial hyperparameter n must be a continuous variable type (double, vec, or mat).  This is due to an issue in armadillo.");
+  }
+
   armaT p_arma_type = p_arma->getArmaType();
   if(p_arma_type == intT || p_arma_type == ivecT || p_arma_type == imatT) {
     throw std::logic_error("ERROR: binomial hyperparameter p must be a continuous variable type (double, vec, or mat).");
   }
 
   switch(x_arma->getArmaType()) {
-  case intT:
-    if(observed) {
-      p = assignBinomialLogp<cppbugs::ObservedBinomial>(x_arma->getInt(),n_arma,p_arma);
-    } else {
-      p = assignBinomialLogp<cppbugs::Binomial>(x_arma->getInt(),n_arma,p_arma);
-    }
-    break;
-  case ivecT:
-    if(observed) {
-      p = assignBinomialLogp<cppbugs::ObservedBinomial>(x_arma->getiVec(),n_arma,p_arma);
-    } else {
-      p = assignBinomialLogp<cppbugs::Binomial>(x_arma->getiVec(),n_arma,p_arma);
-    }
-    break;
-  case imatT:
-    if(observed) {
-      p = assignBinomialLogp<cppbugs::ObservedBinomial>(x_arma->getiMat(),n_arma,p_arma);
-    } else {
-      p = assignBinomialLogp<cppbugs::Binomial>(x_arma->getiMat(),n_arma,p_arma);
-    }
-    break;
   case doubleT:
+    if(observed) {
+      p = assignBinomialLogp<cppbugs::ObservedBinomial>(x_arma->getDouble(),n_arma,p_arma);
+    } else {
+      p = assignBinomialLogp<cppbugs::Binomial>(x_arma->getDouble(),n_arma,p_arma);
+    }
+    break;
   case vecT:
+    if(observed) {
+      p = assignBinomialLogp<cppbugs::ObservedBinomial>(x_arma->getVec(),n_arma,p_arma);
+    } else {
+      p = assignBinomialLogp<cppbugs::Binomial>(x_arma->getVec(),n_arma,p_arma);
+    }
+    break;
   case matT:
+    if(observed) {
+      p = assignBinomialLogp<cppbugs::ObservedBinomial>(x_arma->getMat(),n_arma,p_arma);
+    } else {
+      p = assignBinomialLogp<cppbugs::Binomial>(x_arma->getMat(),n_arma,p_arma);
+    }
+    break;
+  case intT:
+  case ivecT:
+  case imatT:
   default:
-    throw std::logic_error("ERROR: binomial must be an integer variable type.");
+    //throw std::logic_error("ERROR: binomial must be an integer variable type.");
+    throw std::logic_error("ERROR: binomial must be an discrete valued continuous variable type.  This is due to a small issue in armadillo.  email me if you want a full explanation");
   }
   return p;
 }

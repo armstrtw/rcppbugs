@@ -25,6 +25,9 @@ template<template<typename> class MCTYPE, typename T>
 MCTYPE<T>* assignBinomialLogp(T& x, ArmaContext* n, ArmaContext* p) {
   MCTYPE<T>* node = new MCTYPE<T>(x);
 
+  /*
+
+  // to switch back to allowing integer valued n and continuous p
   if(n->getArmaType() == intT && p->getArmaType() == doubleT) { node->dbinom(n->getInt(),p->getDouble()); }
   else if(n->getArmaType() == ivecT && p->getArmaType() == doubleT) { node->dbinom(n->getiVec(),p->getDouble()); }
   else if(n->getArmaType() == imatT && p->getArmaType() == doubleT) { node->dbinom(n->getiMat(),p->getDouble()); }
@@ -34,6 +37,18 @@ MCTYPE<T>* assignBinomialLogp(T& x, ArmaContext* n, ArmaContext* p) {
   else if(n->getArmaType() == intT && p->getArmaType() == matT) { node->dbinom(n->getInt(),p->getMat()); }
   else if(n->getArmaType() == ivecT && p->getArmaType() == matT) { node->dbinom(n->getiVec(),p->getMat()); }
   else if(n->getArmaType() == imatT && p->getArmaType() == matT) { node->dbinom(n->getiMat(),p->getMat()); }
+  else { throw std::logic_error("ERROR: invalid type used in binomial distribution."); }
+  */
+
+  if(n->getArmaType() == doubleT && p->getArmaType() == doubleT) { node->dbinom(n->getDouble(),p->getDouble()); }
+  else if(n->getArmaType() == vecT && p->getArmaType() == doubleT) { node->dbinom(n->getVec(),p->getDouble()); }
+  else if(n->getArmaType() == matT && p->getArmaType() == doubleT) { node->dbinom(n->getMat(),p->getDouble()); }
+  else if(n->getArmaType() == doubleT && p->getArmaType() == vecT) { node->dbinom(n->getDouble(),p->getVec()); }
+  else if(n->getArmaType() == vecT && p->getArmaType() == vecT) { node->dbinom(n->getVec(),p->getVec()); }
+  else if(n->getArmaType() == matT && p->getArmaType() == vecT) { node->dbinom(n->getMat(),p->getVec()); }
+  else if(n->getArmaType() == doubleT && p->getArmaType() == matT) { node->dbinom(n->getDouble(),p->getMat()); }
+  else if(n->getArmaType() == vecT && p->getArmaType() == matT) { node->dbinom(n->getVec(),p->getMat()); }
+  else if(n->getArmaType() == matT && p->getArmaType() == matT) { node->dbinom(n->getMat(),p->getMat()); }
   else { throw std::logic_error("ERROR: invalid type used in binomial distribution."); }
 
   return node;
