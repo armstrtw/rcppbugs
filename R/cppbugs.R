@@ -67,6 +67,9 @@ deterministic <- function(f,...) {
 }
 
 linear <- function(X,b) {
+    stopifnot(is.null(dim(b)))
+    stopifnot(!is.null(dim(X)))
+    stopifnot(length(dim(X))==2L)
     x <- X %*% b
     attr(x,"distributed") <- "linear.deterministic"
     attr(x,"X") <- substitute(X)
@@ -78,6 +81,9 @@ linear <- function(X,b) {
 
 
 logistic <- function(X,b) {
+    stopifnot(is.null(dim(b)))
+    stopifnot(!is.null(dim(X)))
+    stopifnot(length(dim(X))==2L)
     x <- 1/(1 + exp(-X %*% b))
     attr(x,"distributed") <- "logistic.deterministic"
     attr(x,"X") <- substitute(X)
