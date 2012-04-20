@@ -58,6 +58,7 @@ distMapT initDistributions() {
   // deterministic types
   ans["deterministic"] = deterministicT;
   ans["linear.deterministic"] = linearDeterministicT;
+  ans["logistic.deterministic"] = logisticDeterministicT;
 
   // continuous types
   ans["normal"] = normalDistT;

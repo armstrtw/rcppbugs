@@ -1,6 +1,6 @@
 // -*- mode: C++; c-indent-level: 2; c-basic-offset: 2; tab-width: 8 -*-
 ///////////////////////////////////////////////////////////////////////////
-// Copyright (C) 2012  Whit Armstrong                                    //
+// Copyright (C) 2012 Whit Armstrong                                     //
 //                                                                       //
 // This program is free software: you can redistribute it and/or modify  //
 // it under the terms of the GNU General Public License as published by  //
@@ -16,11 +16,27 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>. //
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DISTRIBUTION_TYPES_H
-#define DISTRIBUTION_TYPES_H
+#ifndef LOGISTIC_DETERMINISTIC_H
+#define LOGISTIC_DETERMINISTIC_H
 
-enum distT { /*deterministic*/ deterministicT, linearDeterministicT, logisticDeterministicT,
-             /*continuous*/ normalDistT, uniformDistT, gammaDistT, betaDistT,
-             /*discrete*/ bernoulliDistT, binomialDistT };
+//#include <Rcpp.h>
+#include <RcppArmadillo.h>
+#include <cppbugs/mcmc.deterministic.hpp>
 
-#endif // DISTRIBUTION_TYPES_H
+
+namespace cppbugs {
+
+  class LogisticDeterministic : public Deterministic<arma::mat> {
+  private:
+    const arma::mat& X_;
+    const arma::vec& b_;
+  public:
+    LogisticDeterministic(arma::mat& value, const arma::mat& X, const arma::vec& b):
+      Deterministic<arma::mat>(value), X_(X), b_(b) {}
+
+    void jump(RngBase& rng) {      
+      Deterministic<arma::mat>::value = 1/(1+exp(-X_*b_));
+    }
+  };
+} // namespace cppbugs
+#endif //LOGISTIC_DETERMINISTIC_H

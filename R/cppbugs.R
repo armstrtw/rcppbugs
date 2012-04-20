@@ -76,6 +76,17 @@ linear <- function(X,b) {
     x
 }
 
+
+logistic <- function(X,b) {
+    x <- 1/(1 + exp(-X %*% b))
+    attr(x,"distributed") <- "logistic.deterministic"
+    attr(x,"X") <- substitute(X)
+    attr(x,"b") <- substitute(b)
+    attr(x,"env") <- new.env()
+    class(x) <- "mcmc.object"
+    x
+}
+
 normal.dist <- function(x,mu,tau,observed=FALSE) {
     attr(x,"distributed") <- "normal"
     attr(x,"mu") <- substitute(mu)

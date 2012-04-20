@@ -42,6 +42,7 @@
 #include "assign.binomial.logp.h"
 #include "r.deterministic.h"
 #include "linear.deterministic.h"
+#include "logistic.deterministic.h"
 #include "r.mcmc.model.h"
 
 typedef std::map<void*,ArmaContext*> vpArmaMapT;
@@ -57,6 +58,7 @@ extern "C" SEXP runModel(SEXP mp_, SEXP iterations, SEXP burn_in, SEXP adapt, SE
 cppbugs::MCMCObject* createMCMC(SEXP x, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createDeterministic(SEXP args_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createLinearDeterministic(SEXP x_, vpArmaMapT& armaMap);
+cppbugs::MCMCObject* createLogisticDeterministic(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createNormal(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createUniform(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createGamma(SEXP x_, vpArmaMapT& armaMap);
@@ -344,6 +346,9 @@ cppbugs::MCMCObject* createMCMC(SEXP x_, vpArmaMapT& armaMap) {
   case linearDeterministicT:
     ans = createLinearDeterministic(x_,armaMap);
     break;
+  case logisticDeterministicT:
+    ans = createLogisticDeterministic(x_,armaMap);
+    break;
     // continuous types
   case normalDistT:
     ans = createNormal(x_,armaMap);
@@ -460,6 +465,45 @@ cppbugs::MCMCObject* createLinearDeterministic(SEXP x_, vpArmaMapT& armaMap) {
   }
 
   p = new cppbugs::LinearDeterministic(x_arma->getMat(),X_arma->getMat(),b_arma->getVec());
+  return p;
+}
+
+cppbugs::MCMCObject* createLogisticDeterministic(SEXP x_, vpArmaMapT& armaMap) {
+  cppbugs::MCMCObject* p;
+  ArmaContext* x_arma = armaMap[rawAddress(x_)];
+
+  SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
+  SEXP X_ = Rf_getAttrib(x_,Rf_install("X"));
+  SEXP b_ = Rf_getAttrib(x_,Rf_install("b"));
+
+  if(x_ == R_NilValue || env_ == R_NilValue || X_ == R_NilValue || b_ == R_NilValue) {
+    throw std::logic_error("ERROR: createLogisticDeterministic, missing or null argument.");
+  }
+
+  // force substitutions
+  if(TYPEOF(X_)==SYMSXP) { X_ = Rf_eval(X_,env_); }
+  if(TYPEOF(b_)==SYMSXP) { b_ = Rf_eval(b_,env_); }
+
+  // map to arma types
+  ArmaContext* X_arma = mapOrFetch(X_, armaMap);
+  ArmaContext* b_arma = mapOrFetch(b_, armaMap);
+
+  // little x
+  if(x_arma->getArmaType() != matT) {
+    throw std::logic_error("ERROR: createLogisticDeterministic, x must be a matrix.");
+  }
+
+  // big X
+  if(X_arma->getArmaType() != matT) {
+    throw std::logic_error("ERROR: createLogisticDeterministic, X must be a matrix.");
+  }
+
+  // b -- coefs vector
+  if(b_arma->getArmaType() != vecT) {
+    throw std::logic_error("ERROR: createLogisticDeterministic, b must be a vector.");
+  }
+
+  p = new cppbugs::LogisticDeterministic(x_arma->getMat(),X_arma->getMat(),b_arma->getVec());
   return p;
 }
 
