@@ -264,11 +264,18 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
       argnames.push_back(CHAR(PRINTNAME(arglist[i])));
       arglist[i] = Rf_eval(arglist[i],env_);
     }
-    ArmaContext* ap = getArma(arglist[i]);
-    armaMap[rawAddress(arglist[i])] = ap;
-    cppbugs::MCMCObject* node = createMCMC(arglist[i],armaMap);
-    mcmcMap[rawAddress(arglist[i])] = node;
-    mcmcObjects.push_back(node);
+    try {
+      ArmaContext* ap = getArma(arglist[i]);
+      armaMap[rawAddress(arglist[i])] = ap;
+      cppbugs::MCMCObject* node = createMCMC(arglist[i],armaMap);
+      mcmcMap[rawAddress(arglist[i])] = node;
+      mcmcObjects.push_back(node);
+    } catch (std::logic_error &e) {
+      releaseMap(armaMap);
+      releaseMap(mcmcMap);
+      REprintf("%s\n",e.what());
+      return R_NilValue;
+    }
   }
 
   int iterations_ = Rcpp::as<int>(iterations);
@@ -455,12 +462,12 @@ cppbugs::MCMCObject* createLinearDeterministic(SEXP x_, vpArmaMapT& armaMap) {
   }
 
   // big X
-  if(X_arma->getArmaType() != matT) {
+  if(X_arma->getArmaType() != matT && X_arma->getArmaType() != imatT) {
     throw std::logic_error("ERROR: createLinearDeterministic, X must be a matrix.");
   }
 
   // b -- coefs vector
-  if(b_arma->getArmaType() != vecT) {
+  if(b_arma->getArmaType() != vecT && b_arma->getArmaType() != ivecT) {
     throw std::logic_error("ERROR: createLinearDeterministic, b must be a vector.");
   }
 
@@ -494,12 +501,12 @@ cppbugs::MCMCObject* createLogisticDeterministic(SEXP x_, vpArmaMapT& armaMap) {
   }
 
   // big X
-  if(X_arma->getArmaType() != matT) {
+  if(X_arma->getArmaType() != matT && X_arma->getArmaType() != imatT) {
     throw std::logic_error("ERROR: createLogisticDeterministic, X must be a matrix.");
   }
 
   // b -- coefs vector
-  if(b_arma->getArmaType() != vecT) {
+  if(b_arma->getArmaType() != vecT && b_arma->getArmaType() != ivecT) {
     throw std::logic_error("ERROR: createLogisticDeterministic, b must be a vector.");
   }
 
