@@ -1,9 +1,8 @@
 useDynLib(rcppbugs)
 
-export(print.mcmc.object,
-       create.model,
+S3method(print, mcmc.object)
+export(create.model,
        logp,
-       jump,
        run.model,
        deterministic,
        linear,
