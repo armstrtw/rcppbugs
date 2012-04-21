@@ -42,7 +42,7 @@ public:
   virtual arma::ivec& getiVec() { throw std::logic_error("ERROR: Arma type conversion not supported."); }
   virtual arma::imat& getiMat() { throw std::logic_error("ERROR: Arma type conversion not supported."); }
 
-  virtual void print() const = 0;
+  //virtual void print() const = 0;
 };
 
 class ArmaDouble : public ArmaContext {
@@ -51,7 +51,7 @@ private:
 public:
   ArmaDouble(SEXP x_sexp): ArmaContext(doubleT), x_(REAL(x_sexp)[0]) {}
   double& getDouble() { return x_; }
-  void print() const { std::cout << x_ << std::endl; }
+  //void print() const { std::cout << x_ << std::endl; }
 };
 
 class ArmaVec : public ArmaContext {
@@ -60,7 +60,7 @@ private:
 public:
   ArmaVec(SEXP x_sexp): ArmaContext(vecT), x_(arma::vec(REAL(x_sexp), Rf_length(x_sexp), false)) {}
   arma::vec& getVec() { return x_; }
-  void print() const { std::cout << x_ << std::endl; }
+  //void print() const { std::cout << x_ << std::endl; }
 };
 
 class ArmaMat : public ArmaContext {
@@ -69,7 +69,7 @@ private:
 public:
   ArmaMat(SEXP x_sexp): ArmaContext(matT), x_(arma::mat(REAL(x_sexp), Rf_nrows(x_sexp), Rf_ncols(x_sexp), false)) {}
   arma::mat& getMat() { return x_; }
-  void print() const { std::cout << x_ << std::endl; }
+  //void print() const { std::cout << x_ << std::endl; }
 };
 
 
@@ -79,7 +79,7 @@ private:
 public:
   ArmaInt(SEXP x_sexp): ArmaContext(intT), x_(INTEGER(x_sexp)[0]) {}
   int& getInt() { return x_; }
-  void print() const { std::cout << x_ << std::endl; }
+  //void print() const { std::cout << x_ << std::endl; }
 };
 
 class ArmaiVec : public ArmaContext {
@@ -88,7 +88,7 @@ private:
 public:
   ArmaiVec(SEXP x_sexp): ArmaContext(ivecT), x_(arma::ivec(INTEGER(x_sexp), Rf_length(x_sexp), false)) {}
   arma::ivec& getiVec() { return x_; }
-  void print() const { std::cout << x_ << std::endl; }
+  //void print() const { std::cout << x_ << std::endl; }
 };
 
 class ArmaiMat : public ArmaContext {
@@ -97,7 +97,7 @@ private:
 public:
   ArmaiMat(SEXP x_sexp): ArmaContext(imatT), x_(arma::imat(INTEGER(x_sexp), Rf_nrows(x_sexp), Rf_ncols(x_sexp), false)) {}
   arma::imat& getiMat() { return x_; }
-  void print() const { std::cout << x_ << std::endl; }
+  //void print() const { std::cout << x_ << std::endl; }
 };
 
 
