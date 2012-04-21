@@ -41,7 +41,6 @@ Here is a simple example of a linear model in rcppbugs.
 
 	library(rcppbugs)
 	
-	
 	## set up the test data
 	NR <- 1e2L
 	NC <- 2L
@@ -69,3 +68,34 @@ Here is a simple example of a linear model in rcppbugs.
 	print(runtime)
 	
 
+Below the same model is fit using the 'linear' shortcut, which simply implements the operation X %*% b in templated Armadillo.
+
+::
+
+	library(rcppbugs)
+	
+	## set up the test data
+	NR <- 1e2L
+	NC <- 2L
+	y <- matrix(rnorm(NR,1) + 10,nr=NR,nc=1L)
+	X <- matrix(nr=NR,nc=NC)
+	X[,1] <- 1
+	X[,2] <- y + rnorm(NR)/2 - 10
+	
+	## run a normal linear model w/ lm.fit to check results
+	lm.res <- lm.fit(X,y)
+	print(coef(lm.res))
+	
+	## RCppBugs Model
+	b <- normal.dist(rnorm(NC),mu=0,tau=0.0001)
+	tau.y <- gamma.dist(sd(as.vector(y)),alpha=0.1,beta=0.1)
+	y.hat <- linear(X,b)
+	y.lik <- normal.dist(y,mu=y.hat,tau=tau.y,observed=TRUE)
+	m <- create.model(b, tau.y, y.hat, y.lik)
+
+        ## run the model	
+	cat("running model...\n")
+	runtime <- system.time(ans <- run.model(m, iterations=1e5L, burn=1e4L, adapt=1e3L, thin=10L))
+	print(apply(ans[["b"]],2,mean))
+	
+	print(runtime)
