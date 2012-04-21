@@ -25,7 +25,8 @@ namespace cppbugs {
 
   class RNativeRng : public RngBase {
   public:
-    RNativeRng() {}
+    RNativeRng() { GetRNGstate(); }
+    ~RNativeRng() { PutRNGstate(); }
     double normal() { return norm_rand(); }
     double uniform() { return unif_rand(); }
   };
