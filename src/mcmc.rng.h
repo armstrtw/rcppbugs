@@ -15,10 +15,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>. //
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef MCMC_RNativeRng_HPP
-#define MCMC_RNativeRng_HPP
+#ifndef MCMC_R_NATIVE_RNG_H
+#define MCMC_R_NATIVE_RNG_H
 
-//#include <Rinternals.h>
+#include <cppbugs/mcmc.rng.hpp>
 #include <S.h>
 
 namespace cppbugs {
@@ -32,4 +32,4 @@ namespace cppbugs {
   };
 
 } // namespace cppbugs
-#endif // MCMC_RNativeRng_HPP
+#endif // MCMC_R_NATIVE_RNG_H
