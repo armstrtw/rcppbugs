@@ -25,7 +25,7 @@
 #include <exception>
 #include <cppbugs/mcmc.object.hpp>
 #include <cppbugs/mcmc.stochastic.hpp>
-#include "mcmc.rng.hpp"
+#include "mcmc.rng.h"
 
 namespace cppbugs {
 
