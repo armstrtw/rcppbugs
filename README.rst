@@ -29,11 +29,13 @@ Usage
 
 Here is a simple example of a linear model in rcppbugs.
 
-* define the variable space
+* define the nodes of your model as simple R objects
 
-* implement a function which updates the deterministic variables
+* implement a function which updates the deterministic variables (or use a shortcut function for basic cases)
 
-* add nodes to the model and define the parameters governing the stochastic variables
+* create a model object with 'create.model'
+
+* run your model with the 'run.model' function
 
 ::
 
@@ -53,17 +55,13 @@ Here is a simple example of a linear model in rcppbugs.
 	print(coef(lm.res))
 	
 	## RCppBugs Model
-	
 	b <- normal.dist(rnorm(NC),mu=0,tau=0.0001)
 	tau.y <- gamma.dist(sd(as.vector(y)),alpha=0.1,beta=0.1)
-	
-	## can also define a user supplied deterministic function
-	## y.hat <- deterministic(function(X,b) { X %*% b }, X, b)
-	
-	y.hat <- linear(X,b)
+	y.hat <- deterministic(function(X,b) { X %*% b }, X, b)	
 	y.lik <- normal.dist(y,mu=y.hat,tau=tau.y,observed=TRUE)
 	m <- create.model(b, tau.y, y.hat, y.lik)
-	
+
+        ## run the model	
 	cat("running model...\n")
 	runtime <- system.time(ans <- run.model(m, iterations=1e5L, burn=1e4L, adapt=1e3L, thin=10L))
 	print(apply(ans[["b"]],2,mean))
