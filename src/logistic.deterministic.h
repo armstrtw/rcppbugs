@@ -26,12 +26,13 @@
 
 namespace cppbugs {
 
+  template<typename T>
   class LogisticDeterministic : public Deterministic<arma::mat> {
   private:
-    const arma::mat& X_;
+    const T& X_;
     const arma::vec& b_;
   public:
-    LogisticDeterministic(arma::mat& value, const arma::mat& X, const arma::vec& b):
+    LogisticDeterministic(arma::mat& value, const T& X, const arma::vec& b):
       Deterministic<arma::mat>(value), X_(X), b_(b) {}
 
     void jump(RngBase& rng) {      

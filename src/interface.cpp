@@ -458,7 +458,7 @@ cppbugs::MCMCObject* createLinearDeterministic(SEXP x_, vpArmaMapT& armaMap) {
 
   // little x
   if(x_arma->getArmaType() != matT) {
-    throw std::logic_error("ERROR: createLinearDeterministic, x must be a matrix.");
+    throw std::logic_error("ERROR: createLinearDeterministic, x must be a real valued matrix.");
   }
 
   // big X
@@ -467,11 +467,20 @@ cppbugs::MCMCObject* createLinearDeterministic(SEXP x_, vpArmaMapT& armaMap) {
   }
 
   // b -- coefs vector
-  if(b_arma->getArmaType() != vecT && b_arma->getArmaType() != ivecT) {
-    throw std::logic_error("ERROR: createLinearDeterministic, b must be a vector.");
+  if(b_arma->getArmaType() != vecT) {
+    throw std::logic_error("ERROR: createLinearDeterministic, b must be a real valued vector.");
   }
 
-  p = new cppbugs::LinearDeterministic(x_arma->getMat(),X_arma->getMat(),b_arma->getVec());
+  switch(X_arma->getArmaType()) {
+  case matT:
+    p = new cppbugs::LinearDeterministic<arma::mat>(x_arma->getMat(),X_arma->getMat(),b_arma->getVec());
+    break;
+  case imatT:
+    p = new cppbugs::LinearDeterministic<arma::imat>(x_arma->getMat(),X_arma->getiMat(),b_arma->getVec());
+    break;
+  default:
+    throw std::logic_error("ERROR: createLogisticDeterministic, combination of arguments not supported.");
+  }
   return p;
 }
 
@@ -497,7 +506,7 @@ cppbugs::MCMCObject* createLogisticDeterministic(SEXP x_, vpArmaMapT& armaMap) {
 
   // little x
   if(x_arma->getArmaType() != matT) {
-    throw std::logic_error("ERROR: createLogisticDeterministic, x must be a matrix.");
+    throw std::logic_error("ERROR: createLogisticDeterministic, x must be a real valued matrix.");
   }
 
   // big X
@@ -506,11 +515,20 @@ cppbugs::MCMCObject* createLogisticDeterministic(SEXP x_, vpArmaMapT& armaMap) {
   }
 
   // b -- coefs vector
-  if(b_arma->getArmaType() != vecT && b_arma->getArmaType() != ivecT) {
-    throw std::logic_error("ERROR: createLogisticDeterministic, b must be a vector.");
+  if(b_arma->getArmaType() != vecT) {
+    throw std::logic_error("ERROR: createLogisticDeterministic, b must be a real valued vector.");
   }
 
-  p = new cppbugs::LogisticDeterministic(x_arma->getMat(),X_arma->getMat(),b_arma->getVec());
+  switch(X_arma->getArmaType()) {
+  case matT:
+    p = new cppbugs::LogisticDeterministic<arma::mat>(x_arma->getMat(),X_arma->getMat(),b_arma->getVec());
+    break;
+  case imatT:
+    p = new cppbugs::LogisticDeterministic<arma::imat>(x_arma->getMat(),X_arma->getiMat(),b_arma->getVec());
+    break;
+  default:
+    throw std::logic_error("ERROR: createLogisticDeterministic, combination of arguments not supported.");
+  }
   return p;
 }
 
