@@ -50,7 +50,6 @@ typedef std::map<void*,cppbugs::MCMCObject*> vpMCMCMapT;
 
 // public interface
 extern "C" SEXP logp(SEXP x);
-extern "C" SEXP jump(SEXP x);
 extern "C" SEXP createModel(SEXP args_sexp);
 extern "C" SEXP runModel(SEXP mp_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin);
 
@@ -116,23 +115,6 @@ SEXP logp(SEXP x_) {
     REprintf("ERROR: could not convert node to stochastic.\n");
   }
   return Rcpp::wrap(ans);
-}
-
-SEXP jump(SEXP x_) {
-  static cppbugs::RNativeRng rng;
-  cppbugs::MCMCObject* node(NULL);
-  vpArmaMapT armaMap;
-
-  try {
-    ArmaContext* ap = getArma(x_);
-    armaMap[rawAddress(x_)] = ap;
-    node = createMCMC(x_,armaMap);
-  } catch (std::logic_error &e) {
-    REprintf("%s\n",e.what());
-    return R_NilValue;
-  }
-  node->jump(rng);
-  return R_NilValue;
 }
 
 template<typename T>
@@ -282,14 +264,16 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   int burn_in_ = Rcpp::as<int>(burn_in);
   int adapt_ = Rcpp::as<int>(adapt);
   int thin_ = Rcpp::as<int>(thin);
-
+  SEXP ar; PROTECT(ar = Rf_allocVector(REALSXP,1));
   try {
     cppbugs::RMCModel m(mcmcObjects);
     m.sample(iterations_, burn_in_, adapt_, thin_);
-    std::cout << "acceptance_ratio: " << m.acceptance_ratio() << std::endl;
+    //std::cout << "acceptance_ratio: " << m.acceptance_ratio() << std::endl;
+    REAL(ar)[0] = m.acceptance_ratio();
   } catch (std::logic_error &e) {
     releaseMap(armaMap);
     releaseMap(mcmcMap);
+    UNPROTECT(1); // ar
     REprintf("%s\n",e.what());
     return R_NilValue;
   }
@@ -299,7 +283,8 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   releaseMap(armaMap);
   releaseMap(mcmcMap);
   Rf_setAttrib(ans, R_NamesSymbol, makeNames(argnames));
-  UNPROTECT(1);
+  Rf_setAttrib(ans, Rf_install("acceptance.ratio"), ar);
+  UNPROTECT(2); // ans + ar
   return ans;
 }
 

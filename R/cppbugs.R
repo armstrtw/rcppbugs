@@ -30,10 +30,6 @@ logp <- function(x) {
     .Call("logp",x,PACKAGE="rcppbugs")
 }
 
-jump <- function(x) {
-    invisible(.Call("jump",x,PACKAGE="rcppbugs"))
-}
-
 ## print.mcmc <- function(x) {
 ##     invisible(.Call("printMCMC",x,PACKAGE="rcppbugs"))
 ## }
