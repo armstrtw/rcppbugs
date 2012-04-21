@@ -15,7 +15,8 @@
 ## along with this program.  If not, see <http:##www.gnu.org#licenses#>. ##
 ###########################################################################
 
-print.mcmc.object <- function(x) {
+print.mcmc.object <- function(x,digits = NULL, quote = TRUE, na.print = NULL, print.gap = NULL,
+    right = FALSE, max = NULL, useSource = TRUE, ...) {
 
     x <- unclass(x)
     xd <- dim(x)
@@ -23,7 +24,7 @@ print.mcmc.object <- function(x) {
     if(!is.null(xd)) {
         dim(x) <- xd
     }
-    print.default(x)
+    print.default(x,digits, quote, na.print, print.gap, right, max, useSource, ...)
 }
 
 logp <- function(x) {
