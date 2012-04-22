@@ -36,12 +36,12 @@ namespace cppbugs {
     std::vector<MCMCObject*> mcmcObjects_, dynamic_nodes, determinsitic_nodes;
     std::vector<Likelihiood*> logp_functors;
    
-    void jump() { for(auto v : dynamic_nodes) { v->jump(rng_); } }
-    void jump_detrministics() { for(auto v : determinsitic_nodes) { v->jump(rng_); } }
-    void preserve() { for(auto v : dynamic_nodes) { v->preserve(); } }
-    void revert() { for(auto v : dynamic_nodes) { v->revert(); } }
-    void set_scale(const double scale) { for(auto v : dynamic_nodes) { v->setScale(scale); } }
-    void tally() { for(auto v : dynamic_nodes) { v->tally(); } }
+    void jump() { for(size_t i = 0; i < dynamic_nodes.size(); i++) { dynamic_nodes[i]->jump(rng_); } }
+    void jump_detrministics() { for(size_t i = 0; i < determinsitic_nodes.size(); i++) { determinsitic_nodes[i]->jump(rng_); } }
+    void preserve() { for(size_t i = 0; i < dynamic_nodes.size(); i++) { dynamic_nodes[i]->preserve(); } }
+    void revert() { for(size_t i = 0; i < dynamic_nodes.size(); i++) { dynamic_nodes[i]->revert(); } }
+    void set_scale(const double scale) { for(size_t i = 0; i < dynamic_nodes.size(); i++) { dynamic_nodes[i]->setScale(scale); } }
+    void tally() { for(size_t i = 0; i < dynamic_nodes.size(); i++) { dynamic_nodes[i]->tally(); } }
     //void print() { for(auto v : mcmcObjects_) { v->print(); } }
     static bool bad_logp(const double value) { return std::isnan(value) || value == -std::numeric_limits<double>::infinity() ? true : false; }
 
@@ -55,16 +55,16 @@ namespace cppbugs {
     }
 
     void initChain() {
-      for(auto node : mcmcObjects_) {
+      for(std::vector<MCMCObject*>::iterator node = mcmcObjects_.begin(); node != mcmcObjects_.end(); node++) {
         // FIXME: add test here to check starting from invalid logp or NaN
-        addStochcasticNode(node);
+        addStochcasticNode(*node);
 
-        if(node->isDeterministc()) {
-          determinsitic_nodes.push_back(node);
+        if((*node)->isDeterministc()) {
+          determinsitic_nodes.push_back(*node);
         }
 
-        if(!node->isObserved()) {
-          dynamic_nodes.push_back(node);
+        if(!(*node)->isObserved()) {
+          dynamic_nodes.push_back(*node);
         }
       }
       // init logp
@@ -77,25 +77,25 @@ namespace cppbugs {
 
     void tune(int iterations, int tuning_step) {
       for(int i = 1; i <= iterations; i++) {
-	for(auto it : dynamic_nodes) {
+	for(std::vector<MCMCObject*>::iterator it = dynamic_nodes.begin(); it != dynamic_nodes.end(); it++) {
           old_logp_value_ = logp_value_;
-          it->preserve();
-          it->jump(rng_);
+          (*it)->preserve();
+          (*it)->jump(rng_);
 
           // has to be done after each stoch jump
           jump_detrministics();
           logp_value_ = logp();
           if(reject(logp_value_, old_logp_value_)) {
-            it->revert();
+            (*it)->revert();
             logp_value_ = old_logp_value_;
-            it->reject();
+            (*it)->reject();
           } else {
-            it->accept();
+            (*it)->accept();
           }
 	}
 	if(i % tuning_step == 0) {
-	  for(auto it : dynamic_nodes) {
-	    it->tune();
+	  for(std::vector<MCMCObject*>::iterator itdyn = dynamic_nodes.begin(); itdyn != dynamic_nodes.end(); itdyn++) {
+	    (*itdyn)->tune();
 	  }
 	}
       }
@@ -133,8 +133,9 @@ namespace cppbugs {
 
     double logp() const {
       double ans(0);
-      for(auto f : logp_functors) {
-        ans += f->calc();
+      //for(auto f : logp_functors) {
+      for(std::vector<Likelihiood*>::const_iterator it = logp_functors.begin(); it != logp_functors.end(); it++) {
+        ans += (*it)->calc();
       }
       return ans;
     }

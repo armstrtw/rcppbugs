@@ -121,7 +121,7 @@ template<typename T>
 SEXP getHistory(cppbugs::MCMCObject* node) {
   //SEXP ans;
   cppbugs::MCMCSpecialized<T>* sp = dynamic_cast<cppbugs::MCMCSpecialized<T>*>(node);
-  if(sp == nullptr) {
+  if(sp == NULL) {
     throw std::logic_error("invalid node conversion.");
   }
   //Rprintf("getHistory<T> history.size(): %d\n",sp->history.size());
@@ -147,7 +147,7 @@ SEXP getHistory(cppbugs::MCMCObject* node) {
 template<> SEXP getHistory<arma::vec>(cppbugs::MCMCObject* node) {
   //SEXP ans;
   cppbugs::MCMCSpecialized<arma::vec>* sp = dynamic_cast<cppbugs::MCMCSpecialized<arma::vec>*>(node);
-  if(sp == nullptr) {
+  if(sp == NULL) {
     throw std::logic_error("invalid node conversion.");
   }
 
@@ -172,7 +172,7 @@ template<> SEXP getHistory<arma::vec>(cppbugs::MCMCObject* node) {
 
 template<> SEXP getHistory<double>(cppbugs::MCMCObject* node) {
   cppbugs::MCMCSpecialized<double>* sp = dynamic_cast<cppbugs::MCMCSpecialized<double>*>(node);
-  if(sp == nullptr) {
+  if(sp == NULL) {
     throw std::logic_error("invalid node conversion.");
   }
   //Rprintf("getHistory<double> history.size(): %d\n",sp->history.size());
