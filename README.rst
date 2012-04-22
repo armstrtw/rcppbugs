@@ -54,10 +54,10 @@ Here is a simple example of a linear model in rcppbugs.
 	print(coef(lm.res))
 	
 	## RCppBugs Model
-	b <- normal.dist(rnorm(NC),mu=0,tau=0.0001)
-	tau.y <- gamma.dist(sd(as.vector(y)),alpha=0.1,beta=0.1)
+	b <- mcmc.normal(rnorm(NC),mu=0,tau=0.0001)
+	tau.y <- mcmc.gamma(sd(as.vector(y)),alpha=0.1,beta=0.1)
 	y.hat <- deterministic(function(X,b) { X %*% b }, X, b)	
-	y.lik <- normal.dist(y,mu=y.hat,tau=tau.y,observed=TRUE)
+	y.lik <- mcmc.normal(y,mu=y.hat,tau=tau.y,observed=TRUE)
 	m <- create.model(b, tau.y, y.hat, y.lik)
 
         ## run the model	
@@ -87,10 +87,10 @@ Below the same model is fit using the 'linear' shortcut, which simply implements
 	print(coef(lm.res))
 	
 	## RCppBugs Model
-	b <- normal.dist(rnorm(NC),mu=0,tau=0.0001)
-	tau.y <- gamma.dist(sd(as.vector(y)),alpha=0.1,beta=0.1)
+	b <- mcmc.normal(rnorm(NC),mu=0,tau=0.0001)
+	tau.y <- mcmc.gamma(sd(as.vector(y)),alpha=0.1,beta=0.1)
 	y.hat <- linear(X,b)
-	y.lik <- normal.dist(y,mu=y.hat,tau=tau.y,observed=TRUE)
+	y.lik <- mcmc.normal(y,mu=y.hat,tau=tau.y,observed=TRUE)
 	m <- create.model(b, tau.y, y.hat, y.lik)
 
         ## run the model	
