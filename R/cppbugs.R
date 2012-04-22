@@ -90,7 +90,7 @@ logistic <- function(X,b) {
     x
 }
 
-normal.dist <- function(x,mu,tau,observed=FALSE) {
+mcmc.normal <- function(x,mu,tau,observed=FALSE) {
     attr(x,"distributed") <- "normal"
     attr(x,"mu") <- substitute(mu)
     attr(x,"tau") <- substitute(tau)
@@ -100,7 +100,7 @@ normal.dist <- function(x,mu,tau,observed=FALSE) {
     x
 }
 
-uniform.dist <- function(x,lower,upper,observed=FALSE) {
+mcmc.uniform <- function(x,lower,upper,observed=FALSE) {
     attr(x,"distributed") <- "uniform"
     attr(x,"lower") <- substitute(lower)
     attr(x,"upper") <- substitute(upper)
@@ -110,7 +110,7 @@ uniform.dist <- function(x,lower,upper,observed=FALSE) {
     x
 }
 
-gamma.dist <- function(x,alpha,beta,observed=FALSE) {
+mcmc.gamma <- function(x,alpha,beta,observed=FALSE) {
     attr(x,"distributed") <- "gamma"
     attr(x,"alpha") <- substitute(alpha)
     attr(x,"beta") <- substitute(beta)
@@ -120,7 +120,7 @@ gamma.dist <- function(x,alpha,beta,observed=FALSE) {
     x
 }
 
-bernoulli.dist <- function(x,p,observed=FALSE) {
+mcmc.bernoulli <- function(x,p,observed=FALSE) {
     attr(x,"distributed") <- "bernoulli"
     attr(x,"p") <- substitute(p)
     attr(x,"observed") <- observed
@@ -129,7 +129,7 @@ bernoulli.dist <- function(x,p,observed=FALSE) {
     x
 }
 
-binomial.dist <- function(x,n,p,observed=FALSE) {
+mcmc.binomial <- function(x,n,p,observed=FALSE) {
     attr(x,"distributed") <- "binomial"
     attr(x,"n") <- substitute(n)
     attr(x,"p") <- substitute(p)

@@ -33,7 +33,7 @@ https://github.com/armstrtw/CppBugs
 rcppbugs was written by Whit Armstrong.
 }
 \seealso{
-  \code{\link{logp},\link{run.model},\link{run.model}}
+  \code{\link{logp},\link{run.model}}
 }
 \examples{
 NR <- 1e2L
@@ -41,7 +41,7 @@ NC <- 2L
 y <- matrix(rnorm(NR,1),nr=NR,nc=1L)
 X <- matrix(nr=NR,nc=NC)
 
-b <- normal.dist(rnorm(NC),mu=0,tau=0.0001)
+b <- mcmc.normal(rnorm(NC),mu=0,tau=0.0001)
 y.hat.user <- deterministic(function(X,b) { X \%*\% b }, X, b)
 y.hat.cpp <- linear(X,b)
 

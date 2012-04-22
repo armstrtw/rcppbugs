@@ -26,14 +26,14 @@ rcppbugs was written by Whit Armstrong.
 }
 
 \seealso{
-  \code{\link{normal.dist}}
+  \code{\link{mcmc.normal}}
 }
 \examples{
 NR <- 100
 NC <- 2
 
-b <- normal.dist(rnorm(NC),mu=0,tau=0.0001)
-tau.y <- gamma.dist(runif(1),alpha=0.1,beta=0.1)
+b <- mcmc.normal(rnorm(NC),mu=0,tau=0.0001)
+tau.y <- mcmc.gamma(runif(1),alpha=0.1,beta=0.1)
 
 logp(b)
 logp(tau.y)

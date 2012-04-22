@@ -15,7 +15,7 @@
 create.model(...)
 run.model(m, iterations, burn, adapt, thin)
 }
-%- maybe also 'usage' for other objects documented here.
+
 \arguments{
   \item{m}{the rcppbugs model object.}
   \item{iterations}{how many iterations to sample.}
@@ -51,10 +51,10 @@ X[,1] <- 1
 X[,2] <- y + rnorm(NR)/2 - 10
 
 ## RCppBugs Model
-b <- normal.dist(rnorm(NC),mu=0,tau=0.0001)
-tau.y <- gamma.dist(sd(as.vector(y)),alpha=0.1,beta=0.1)
+b <- mcmc.normal(rnorm(NC),mu=0,tau=0.0001)
+tau.y <- mcmc.gamma(sd(as.vector(y)),alpha=0.1,beta=0.1)
 y.hat <- linear(X,b)
-y.lik <- normal.dist(y,mu=y.hat,tau=tau.y,observed=TRUE)
+y.lik <- mcmc.normal(y,mu=y.hat,tau=tau.y,observed=TRUE)
 m <- create.model(b, tau.y, y.hat, y.lik)
 
 

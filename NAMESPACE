@@ -7,9 +7,9 @@ export(create.model,
        deterministic,
        linear,
        logistic,
-       normal.dist,
-       uniform.dist,
-       gamma.dist,
-       bernoulli.dist,
-       binomial.dist
+       mcmc.normal,
+       mcmc.uniform,
+       mcmc.gamma,
+       mcmc.bernoulli,
+       mcmc.binomial
        )

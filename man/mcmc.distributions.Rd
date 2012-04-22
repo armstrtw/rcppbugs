@@ -1,9 +1,9 @@
-\name{normal.dist}
-\alias{normal.dist}
-\alias{uniform.dist}
-\alias{gamma.dist}
-\alias{bernoulli.dist}
-\alias{binomial.dist}
+\name{mcmc.distributions}
+\alias{mcmc.normal}
+\alias{mcmc.uniform}
+\alias{mcmc.gamma}
+\alias{mcmc.bernoulli}
+\alias{mcmc.binomial}
 
 \title{
   Create a stochastic rcppbugs object.
@@ -12,11 +12,11 @@
   Create stochastic objects in the spirit of PyMC.
 }
 \usage{
-normal.dist(x, mu, tau, observed = FALSE)
-uniform.dist(x, lower, upper, observed = FALSE)
-gamma.dist(x, alpha, beta, observed = FALSE)
-bernoulli.dist(x, p, observed = FALSE)
-binomial.dist(x, n, p, observed = FALSE)
+mcmc.normal(x, mu, tau, observed = FALSE)
+mcmc.uniform(x, lower, upper, observed = FALSE)
+mcmc.gamma(x, alpha, beta, observed = FALSE)
+mcmc.bernoulli(x, p, observed = FALSE)
+mcmc.binomial(x, n, p, observed = FALSE)
 }
 
 \arguments{
@@ -55,9 +55,9 @@ rcppbugs was written by Whit Armstrong.
 NR <- 100
 NC <- 2
 y <- matrix(rnorm(NR,1),nr=NR,nc=1L)
-b <- normal.dist(rnorm(NC),mu=0,tau=0.0001)
-tau.y <- gamma.dist(sd(as.vector(y)),alpha=0.1,beta=0.1)
-y.lik <- normal.dist(y,mu=y.hat,tau=tau.y,observed=TRUE)
+b <- mcmc.normal(rnorm(NC),mu=0,tau=0.0001)
+tau.y <- mcmc.gamma(sd(as.vector(y)),alpha=0.1,beta=0.1)
+y.lik <- mcmc.normal(y,mu=y.hat,tau=tau.y,observed=TRUE)
 }
 \keyword{models}
 
