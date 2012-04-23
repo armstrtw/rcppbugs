@@ -19,7 +19,7 @@
 #include <map>
 #include <limits>
 #include <stdexcept>
-#include <boost/random.hpp>
+
 #include <Rcpp.h>
 #include <RcppArmadillo.h>
 //#include <cppbugs/cppbugs.hpp>
