@@ -18,7 +18,7 @@
 #ifndef MCMC_R_NATIVE_RNG_H
 #define MCMC_R_NATIVE_RNG_H
 
-#include <cppbugs/mcmc.rng.hpp>
+#include <cppbugs/mcmc.rng.base.hpp>
 #include <S.h>
 
 namespace cppbugs {
