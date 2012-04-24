@@ -15,14 +15,12 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>. //
 ///////////////////////////////////////////////////////////////////////////
 
-#include <iostream>
 #include <map>
 #include <limits>
 #include <stdexcept>
 
 #include <Rcpp.h>
 #include <RcppArmadillo.h>
-//#include <cppbugs/cppbugs.hpp>
 #include <cppbugs/mcmc.deterministic.hpp>
 #include <cppbugs/mcmc.normal.hpp>
 #include <cppbugs/mcmc.uniform.hpp>
@@ -31,7 +29,6 @@
 #include <cppbugs/mcmc.bernoulli.hpp>
 
 #include "helpers.h"
-#include "finalizers.h"
 #include "raw.address.h"
 #include "distribution.types.h"
 #include "arma.context.h"
