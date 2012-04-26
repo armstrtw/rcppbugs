@@ -18,9 +18,8 @@
 #include <map>
 #include <limits>
 #include <stdexcept>
-
-#include <Rcpp.h>
 #include <RcppArmadillo.h>
+#define NDEBUG
 #include <cppbugs/mcmc.deterministic.hpp>
 #include <cppbugs/mcmc.normal.hpp>
 #include <cppbugs/mcmc.uniform.hpp>
