@@ -307,7 +307,13 @@ ArmaContext* getArma(SEXP x_) {
     }
     break;
   default:
-    throw std::logic_error("ERROR: conversion not supported.");
+    std::stringstream error_ss;
+    error_ss << "ERROR: (getArma) conversion not supported ";
+    error_ss << "TYPEOF: " << TYPEOF(x_);
+    // if(PRINTNAME(x_) != R_NilValue) {
+    //   error_ss << "variable: " << CHAR(PRINTNAME(x_));
+    // }
+    throw std::logic_error(error_ss.str());
   }
   return ap;
 }
