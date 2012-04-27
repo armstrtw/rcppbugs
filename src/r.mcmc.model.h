@@ -144,7 +144,11 @@ namespace cppbugs {
       if(iterations % thin) {
         throw std::logic_error("ERROR: interations not a multiple of thin.");
       }
-      tune(adapt,static_cast<int>(adapt/100));
+
+      // FIXME: kill the magic numbers
+      if(adapt >= 200) {
+        tune(adapt,static_cast<int>(adapt/100));
+      }
       run(iterations, burn, thin);
     }
   };
