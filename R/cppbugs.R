@@ -47,6 +47,9 @@ create.model <- function(...) {
 }
 
 run.model <- function(m, iterations, burn, adapt, thin) {
+    if(adapt != 0 && adapt < 200) {
+        stop("if adapt != 0, it must be at least 200.  Turn adapt off by setting it adapt = 0.")
+    }
     .Call("runModel", m, iterations, burn, adapt, thin, PACKAGE="rcppbugs")
 }
 
