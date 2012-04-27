@@ -788,33 +788,37 @@ cppbugs::MCMCObject* createBernoulli(SEXP x_, vpArmaMapT& armaMap) {
   // map to arma types
   ArmaContext* p_arma = mapOrFetch(p_, armaMap);
 
+  if(p_arma->getArmaType() != doubleT && p_arma->getArmaType() != vecT && p_arma->getArmaType() != matT) {
+    throw std::logic_error("ERROR: createBernoulli, p must be a continuous variable.");
+  }
+
   switch(x_arma->getArmaType()) {
-  case intT:
-    if(observed) {
-      p = assignBernoulliLogp<cppbugs::ObservedBernoulli>(x_arma->getInt(),p_arma);
-    } else {
-      p = assignBernoulliLogp<cppbugs::Bernoulli>(x_arma->getInt(),p_arma);
-    }
-    break;
-  case ivecT:
-    if(observed) {
-      p = assignBernoulliLogp<cppbugs::ObservedBernoulli>(x_arma->getiVec(),p_arma);
-    } else {
-      p = assignBernoulliLogp<cppbugs::Bernoulli>(x_arma->getiVec(),p_arma);
-    }
-    break;
-  case imatT:
-    if(observed) {
-      p = assignBernoulliLogp<cppbugs::ObservedBernoulli>(x_arma->getiMat(),p_arma);
-    } else {
-      p = assignBernoulliLogp<cppbugs::Bernoulli>(x_arma->getiMat(),p_arma);
-    }
-    break;
   case doubleT:
+    if(observed) {
+      p = assignBernoulliLogp<cppbugs::ObservedBernoulli>(x_arma->getDouble(),p_arma);
+    } else {
+      p = assignBernoulliLogp<cppbugs::Bernoulli>(x_arma->getDouble(),p_arma);
+    }
+    break;
   case vecT:
+    if(observed) {
+      p = assignBernoulliLogp<cppbugs::ObservedBernoulli>(x_arma->getVec(),p_arma);
+    } else {
+      p = assignBernoulliLogp<cppbugs::Bernoulli>(x_arma->getVec(),p_arma);
+    }
+    break;
   case matT:
+    if(observed) {
+      p = assignBernoulliLogp<cppbugs::ObservedBernoulli>(x_arma->getMat(),p_arma);
+    } else {
+      p = assignBernoulliLogp<cppbugs::Bernoulli>(x_arma->getMat(),p_arma);
+    }
+    break;
+  case intT:
+  case ivecT:
+  case imatT:
   default:
-    throw std::logic_error("ERROR: bernoulli must be an integer variable type.");
+    throw std::logic_error("ERROR: Bernoulli must be a discrete valued continuous variable type (double, vec, or mat).  This is due to an issue in armadillo.");
   }
   return p;
 }
