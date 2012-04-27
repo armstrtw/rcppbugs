@@ -92,6 +92,7 @@ ArmaContext* mapOrFetch(SEXP x_, vpArmaMapT& armaMap) {
 }
 
 SEXP logp(SEXP x_, SEXP rho_) {
+  const int eval_limit = 10;
   double ans = std::numeric_limits<double>::quiet_NaN();
   cppbugs::MCMCObject* node(NULL);
   vpArmaMapT armaMap;
@@ -101,7 +102,7 @@ SEXP logp(SEXP x_, SEXP rho_) {
   }
 
   try {
-    if(TYPEOF(x_)==SYMSXP) { x_ = Rf_eval(x_,rho_); }
+    x_ = forceEval(x_, rho_, eval_limit);
     ArmaContext* ap = getArma(x_);
     armaMap[rawAddress(x_)] = ap;
     node = createMCMC(x_,armaMap);
@@ -229,6 +230,8 @@ SEXP createTrace(arglistT& arglist, vpArmaMapT& armaMap, vpMCMCMapT& mcmcMap) {
 }
 
 SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
+  const int eval_limit = 10;
+
   SEXP env_ = Rf_getAttrib(m_,Rf_install("env"));
   if(env_ == R_NilValue || TYPEOF(env_) != ENVSXP) {
     throw std::logic_error("ERROR: bad environment passed to deterministic.");
@@ -245,10 +248,11 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   for(size_t i = 0; i < arglist.size(); i++) {
 
     // capture arg name
+    // FIXME: check class of args to make sure it's mcmc
     if(TYPEOF(arglist[i])==SYMSXP) { argnames.push_back(CHAR(PRINTNAME(arglist[i]))); }
 
     // force eval of late bindings
-    while(TYPEOF(arglist[i])==SYMSXP) { arglist[i] = Rf_eval(arglist[i],env_); }
+    arglist[i] = forceEval(arglist[i],env_,eval_limit);
 
     try {
       ArmaContext* ap = getArma(arglist[i]);
@@ -329,6 +333,11 @@ ArmaContext* getArma(SEXP x_) {
 cppbugs::MCMCObject* createMCMC(SEXP x_, vpArmaMapT& armaMap) {
   SEXP distributed_sexp;
   distributed_sexp = Rf_getAttrib(x_,Rf_install("distributed"));
+  SEXP class_sexp = Rf_getAttrib(x_,R_ClassSymbol);
+  if(class_sexp == R_NilValue || TYPEOF(class_sexp) != STRSXP || CHAR(STRING_ELT(class_sexp,0))==NULL || strcmp(CHAR(STRING_ELT(class_sexp,0)),"mcmc.object"))  {
+    throw std::logic_error("ERROR: class attribute not defined or not equal to 'mcmc.object'.");
+  }
+
   if(distributed_sexp == R_NilValue) {
     throw std::logic_error("ERROR: 'distributed' attribute not defined. Is this an mcmc.object?");
   }
@@ -432,6 +441,7 @@ cppbugs::MCMCObject* createDeterministic(SEXP x_, vpArmaMapT& armaMap) {
 }
 
 cppbugs::MCMCObject* createLinearDeterministic(SEXP x_, vpArmaMapT& armaMap) {
+  const int eval_limit = 10;
   cppbugs::MCMCObject* p;
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
@@ -444,8 +454,8 @@ cppbugs::MCMCObject* createLinearDeterministic(SEXP x_, vpArmaMapT& armaMap) {
   }
 
   // force substitutions
-  if(TYPEOF(X_)==SYMSXP) { X_ = Rf_eval(X_,env_); }
-  if(TYPEOF(b_)==SYMSXP) { b_ = Rf_eval(b_,env_); }
+  X_ = forceEval(X_, env_, eval_limit);
+  b_ = forceEval(b_, env_, eval_limit);
 
   // map to arma types
   ArmaContext* X_arma = mapOrFetch(X_, armaMap);
@@ -480,6 +490,7 @@ cppbugs::MCMCObject* createLinearDeterministic(SEXP x_, vpArmaMapT& armaMap) {
 }
 
 cppbugs::MCMCObject* createLogisticDeterministic(SEXP x_, vpArmaMapT& armaMap) {
+  const int eval_limit = 10;
   cppbugs::MCMCObject* p;
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
@@ -492,8 +503,8 @@ cppbugs::MCMCObject* createLogisticDeterministic(SEXP x_, vpArmaMapT& armaMap) {
   }
 
   // force substitutions
-  if(TYPEOF(X_)==SYMSXP) { X_ = Rf_eval(X_,env_); }
-  if(TYPEOF(b_)==SYMSXP) { b_ = Rf_eval(b_,env_); }
+  X_ = forceEval(X_, env_, eval_limit);
+  b_ = forceEval(b_, env_, eval_limit);
 
   // map to arma types
   ArmaContext* X_arma = mapOrFetch(X_, armaMap);
@@ -528,6 +539,7 @@ cppbugs::MCMCObject* createLogisticDeterministic(SEXP x_, vpArmaMapT& armaMap) {
 }
 
 cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
+  const int eval_limit = 10;
   cppbugs::MCMCObject* p;
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
@@ -543,8 +555,8 @@ cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
   }
 
   // force substitutions
-  if(TYPEOF(mu_)==SYMSXP) { mu_ = Rf_eval(mu_,env_); }
-  if(TYPEOF(tau_)==SYMSXP) { tau_ = Rf_eval(tau_,env_); }
+  mu_ = forceEval(mu_, env_, eval_limit);
+  tau_ = forceEval(tau_, env_, eval_limit);
 
   bool observed = Rcpp::as<bool>(observed_);
 
@@ -584,6 +596,7 @@ cppbugs::MCMCObject* createNormal(SEXP x_,vpArmaMapT& armaMap) {
 }
 
 cppbugs::MCMCObject* createUniform(SEXP x_,vpArmaMapT& armaMap) {
+  const int eval_limit = 10;
   cppbugs::MCMCObject* p;
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
@@ -598,8 +611,8 @@ cppbugs::MCMCObject* createUniform(SEXP x_,vpArmaMapT& armaMap) {
   }
 
   // force substitutions
-  if(TYPEOF(lower_)==SYMSXP) { lower_ = Rf_eval(lower_,env_); }
-  if(TYPEOF(upper_)==SYMSXP) { upper_ = Rf_eval(upper_,env_); }
+  lower_ = forceEval(lower_, env_, eval_limit);
+  upper_ = forceEval(upper_, env_, eval_limit);
 
   bool observed = Rcpp::as<bool>(observed_);
 
@@ -639,6 +652,7 @@ cppbugs::MCMCObject* createUniform(SEXP x_,vpArmaMapT& armaMap) {
 }
 
 cppbugs::MCMCObject* createGamma(SEXP x_, vpArmaMapT& armaMap) {
+  const int eval_limit = 10;
   cppbugs::MCMCObject* p;
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
@@ -653,8 +667,8 @@ cppbugs::MCMCObject* createGamma(SEXP x_, vpArmaMapT& armaMap) {
   }
 
   // force substitutions
-  if(TYPEOF(alpha_)==SYMSXP) { alpha_ = Rf_eval(alpha_,env_); }
-  if(TYPEOF(beta_)==SYMSXP) { beta_ = Rf_eval(beta_,env_); }
+  alpha_ = forceEval(alpha_, env_, eval_limit);
+  beta_ = forceEval(beta_, env_, eval_limit);
 
   bool observed = Rcpp::as<bool>(observed_);
 
@@ -694,6 +708,7 @@ cppbugs::MCMCObject* createGamma(SEXP x_, vpArmaMapT& armaMap) {
 }
 
 cppbugs::MCMCObject* createBernoulli(SEXP x_, vpArmaMapT& armaMap) {
+  const int eval_limit = 10;
   cppbugs::MCMCObject* p;
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
@@ -707,7 +722,7 @@ cppbugs::MCMCObject* createBernoulli(SEXP x_, vpArmaMapT& armaMap) {
   }
 
   // force substitutions
-  if(TYPEOF(p_)==SYMSXP) { p_ = Rf_eval(p_,env_); }
+  p_ = forceEval(p_, env_, eval_limit);
   bool observed = Rcpp::as<bool>(observed_);
 
   // map to arma types
@@ -745,6 +760,7 @@ cppbugs::MCMCObject* createBernoulli(SEXP x_, vpArmaMapT& armaMap) {
 }
 
 cppbugs::MCMCObject* createBinomial(SEXP x_, vpArmaMapT& armaMap) {
+  const int eval_limit = 10;
   cppbugs::MCMCObject* p;
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
@@ -759,9 +775,8 @@ cppbugs::MCMCObject* createBinomial(SEXP x_, vpArmaMapT& armaMap) {
   }
 
   // force substitutions
-  // FIXME: add eval limit?
-  while(TYPEOF(n_)==SYMSXP || TYPEOF(n_)==LANGSXP) { n_ = Rf_eval(n_,env_); }
-  while(TYPEOF(p_)==SYMSXP || TYPEOF(p_)==LANGSXP) { p_ = Rf_eval(p_,env_); }
+  n_ = forceEval(n_, env_, eval_limit);
+  p_ = forceEval(p_, env_, eval_limit);
 
   bool observed = Rcpp::as<bool>(observed_);
 
