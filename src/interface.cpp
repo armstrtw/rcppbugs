@@ -45,7 +45,7 @@ typedef std::map<void*,ArmaContext*> vpArmaMapT;
 typedef std::map<void*,cppbugs::MCMCObject*> vpMCMCMapT;
 
 // public interface
-extern "C" SEXP logp(SEXP x);
+extern "C" SEXP logp(SEXP x_,SEXP rho_);
 extern "C" SEXP createModel(SEXP args_sexp);
 extern "C" SEXP runModel(SEXP mp_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin);
 
@@ -91,11 +91,17 @@ ArmaContext* mapOrFetch(SEXP x_, vpArmaMapT& armaMap) {
   return x_arma;
 }
 
-SEXP logp(SEXP x_) {
+SEXP logp(SEXP x_, SEXP rho_) {
   double ans = std::numeric_limits<double>::quiet_NaN();
   cppbugs::MCMCObject* node(NULL);
   vpArmaMapT armaMap;
+
+  if(rho_ == R_NilValue || TYPEOF(rho_) != ENVSXP) {
+    REprintf("ERROR: bad environment passed to logp (contact the package maintainer).");
+  }
+
   try {
+    if(TYPEOF(x_)==SYMSXP) { x_ = Rf_eval(x_,rho_); }
     ArmaContext* ap = getArma(x_);
     armaMap[rawAddress(x_)] = ap;
     node = createMCMC(x_,armaMap);
@@ -237,11 +243,13 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
 
   initArgList(m_, arglist, 1);
   for(size_t i = 0; i < arglist.size(); i++) {
+
+    // capture arg name
+    if(TYPEOF(arglist[i])==SYMSXP) { argnames.push_back(CHAR(PRINTNAME(arglist[i]))); }
+
     // force eval of late bindings
-    if(TYPEOF(arglist[i])==SYMSXP) {
-      argnames.push_back(CHAR(PRINTNAME(arglist[i])));
-      arglist[i] = Rf_eval(arglist[i],env_);
-    }
+    while(TYPEOF(arglist[i])==SYMSXP) { arglist[i] = Rf_eval(arglist[i],env_); }
+
     try {
       ArmaContext* ap = getArma(arglist[i]);
       armaMap[rawAddress(arglist[i])] = ap;
@@ -751,8 +759,9 @@ cppbugs::MCMCObject* createBinomial(SEXP x_, vpArmaMapT& armaMap) {
   }
 
   // force substitutions
-  if(TYPEOF(n_)==SYMSXP) { n_ = Rf_eval(n_,env_); }
-  if(TYPEOF(p_)==SYMSXP) { p_ = Rf_eval(p_,env_); }
+  // FIXME: add eval limit?
+  while(TYPEOF(n_)==SYMSXP || TYPEOF(n_)==LANGSXP) { n_ = Rf_eval(n_,env_); }
+  while(TYPEOF(p_)==SYMSXP || TYPEOF(p_)==LANGSXP) { p_ = Rf_eval(p_,env_); }
 
   bool observed = Rcpp::as<bool>(observed_);
 

@@ -28,7 +28,7 @@ print.mcmc.object <- function(x,digits = NULL, quote = TRUE, na.print = NULL, pr
 }
 
 logp <- function(x) {
-    .Call("logp",x,PACKAGE="rcppbugs")
+    .Call("logp",x,parent.frame(),PACKAGE="rcppbugs")
 }
 
 ## print.mcmc <- function(x) {
