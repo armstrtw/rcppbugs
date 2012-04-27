@@ -24,6 +24,7 @@
 #include <cppbugs/mcmc.normal.hpp>
 #include <cppbugs/mcmc.uniform.hpp>
 #include <cppbugs/mcmc.gamma.hpp>
+#include <cppbugs/mcmc.beta.hpp>
 #include <cppbugs/mcmc.binomial.hpp>
 #include <cppbugs/mcmc.bernoulli.hpp>
 
@@ -34,6 +35,7 @@
 #include "assign.normal.logp.h"
 #include "assign.uniform.logp.h"
 #include "assign.gamma.logp.h"
+#include "assign.beta.logp.h"
 #include "assign.bernoulli.logp.h"
 #include "assign.binomial.logp.h"
 #include "r.deterministic.h"
@@ -57,6 +59,7 @@ cppbugs::MCMCObject* createLogisticDeterministic(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createNormal(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createUniform(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createGamma(SEXP x_, vpArmaMapT& armaMap);
+cppbugs::MCMCObject* createBeta(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createBernoulli(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createBinomial(SEXP x_, vpArmaMapT& armaMap);
 
@@ -370,6 +373,9 @@ cppbugs::MCMCObject* createMCMC(SEXP x_, vpArmaMapT& armaMap) {
   case gammaDistT:
     ans = createGamma(x_,armaMap);
     break;
+  case betaDistT:
+    ans = createBeta(x_,armaMap);
+    break;
     // discrete types
   case bernoulliDistT:
     ans = createBernoulli(x_,armaMap);
@@ -377,9 +383,8 @@ cppbugs::MCMCObject* createMCMC(SEXP x_, vpArmaMapT& armaMap) {
   case binomialDistT:
     ans = createBinomial(x_,armaMap);
     break;
-    // not implemented
-  case betaDistT:
   default:
+    // not implemented
     ans = NULL;
     throw std::logic_error("ERROR: distribution not supported yet.");
   }
@@ -703,6 +708,61 @@ cppbugs::MCMCObject* createGamma(SEXP x_, vpArmaMapT& armaMap) {
   case imatT:
   default:
     throw std::logic_error("ERROR: gamma must be a continuous variable type (double, vec, or mat).");
+  }
+  return p;
+}
+
+cppbugs::MCMCObject* createBeta(SEXP x_, vpArmaMapT& armaMap) {
+  const int eval_limit = 10;
+  cppbugs::MCMCObject* p;
+  ArmaContext* x_arma = armaMap[rawAddress(x_)];
+
+  SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
+  SEXP alpha_ = Rf_getAttrib(x_,Rf_install("alpha"));
+  SEXP beta_ = Rf_getAttrib(x_,Rf_install("beta"));
+  SEXP observed_ = Rf_getAttrib(x_,Rf_install("observed"));
+
+  if(x_ == R_NilValue || env_ == R_NilValue || alpha_ == R_NilValue || beta_ == R_NilValue || observed_ == R_NilValue) {
+    REprintf("ERROR: missing argument.");
+    return NULL;
+  }
+
+  // force substitutions
+  alpha_ = forceEval(alpha_, env_, eval_limit);
+  beta_ = forceEval(beta_, env_, eval_limit);
+  bool observed = Rcpp::as<bool>(observed_);
+
+  // map to arma types
+  ArmaContext* alpha_arma = mapOrFetch(alpha_, armaMap);
+  ArmaContext* beta_arma = mapOrFetch(beta_, armaMap);
+
+  switch(x_arma->getArmaType()) {
+  case doubleT:
+    if(observed) {
+      p = assignBetaLogp<cppbugs::ObservedBeta>(x_arma->getDouble(),alpha_arma,beta_arma);
+    } else {
+      p = assignBetaLogp<cppbugs::Beta>(x_arma->getDouble(),alpha_arma,beta_arma);
+    }
+    break;
+  case vecT:
+    if(observed) {
+      p = assignBetaLogp<cppbugs::ObservedBeta>(x_arma->getVec(),alpha_arma,beta_arma);
+    } else {
+      p = assignBetaLogp<cppbugs::Beta>(x_arma->getVec(),alpha_arma,beta_arma);
+    }
+    break;
+  case matT:
+    if(observed) {
+      p = assignBetaLogp<cppbugs::ObservedBeta>(x_arma->getMat(),alpha_arma,beta_arma);
+    } else {
+      p = assignBetaLogp<cppbugs::Beta>(x_arma->getMat(),alpha_arma,beta_arma);
+    }
+    break;
+  case intT:
+  case ivecT:
+  case imatT:
+  default:
+    throw std::logic_error("ERROR: beta must be a continuous variable type (double, vec, or mat).");
   }
   return p;
 }

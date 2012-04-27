@@ -120,6 +120,16 @@ mcmc.gamma <- function(x,alpha,beta,observed=FALSE) {
     x
 }
 
+mcmc.beta <- function(x,alpha,beta,observed=FALSE) {
+    attr(x,"distributed") <- "beta"
+    attr(x,"alpha") <- substitute(alpha)
+    attr(x,"beta") <- substitute(beta)
+    attr(x,"observed") <- observed
+    attr(x,"env") <- new.env()
+    class(x) <- "mcmc.object"
+    x
+}
+
 mcmc.bernoulli <- function(x,p,observed=FALSE) {
     attr(x,"distributed") <- "bernoulli"
     attr(x,"p") <- substitute(p)
