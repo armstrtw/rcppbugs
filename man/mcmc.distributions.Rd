@@ -2,6 +2,7 @@
 \alias{mcmc.normal}
 \alias{mcmc.uniform}
 \alias{mcmc.gamma}
+\alias{mcmc.beta}
 \alias{mcmc.bernoulli}
 \alias{mcmc.binomial}
 
@@ -15,6 +16,7 @@
 mcmc.normal(x, mu, tau, observed = FALSE)
 mcmc.uniform(x, lower, upper, observed = FALSE)
 mcmc.gamma(x, alpha, beta, observed = FALSE)
+mcmc.beta(x, alpha, beta, observed = FALSE)
 mcmc.bernoulli(x, p, observed = FALSE)
 mcmc.binomial(x, n, p, observed = FALSE)
 }

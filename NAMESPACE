@@ -10,6 +10,7 @@ export(create.model,
        mcmc.normal,
        mcmc.uniform,
        mcmc.gamma,
+       mcmc.beta,
        mcmc.bernoulli,
        mcmc.binomial
        )
