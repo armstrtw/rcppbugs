@@ -32,5 +32,6 @@ std::string getAttr(SEXP x, const char* attr_name);
 std::vector<R_len_t> getDims(SEXP x);
 distT matchDistibution(const std::string distibution);
 distMapT initDistributions();
+SEXP forceEval(SEXP x_, SEXP rho_, const int limit);
 
 #endif // HELPERS_H

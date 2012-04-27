@@ -81,3 +81,11 @@ distT matchDistibution(const std::string distibution) {
   }
   return distMap[distibution];
 }
+
+SEXP forceEval(SEXP x_, SEXP rho_, const int limit) {
+  int i = 0;
+  while((TYPEOF(x_)==SYMSXP || TYPEOF(x_)==LANGSXP) && i < limit) {
+    x_ = Rf_eval(x_,rho_); ++i;
+  }
+  return x_;
+}
