@@ -100,6 +100,11 @@ logistic <- function(X,b) {
 mcmc.normal <- function(x,mu,tau,observed=FALSE) {
     if(missing(mu)) stop("required argument 'mu' missing.")
     if(missing(tau)) stop("required argument 'tau' missing.")
+
+    if(length(mu) > length(x) || length(tau) > length(x)) {
+        stop("dimensions of hyperparmeters are larger than the stochastic variable itself. ",
+             "(is this really what you wanted to do?)")
+    }
     attr(x,"distributed") <- "normal"
     attr(x,"mu") <- substitute(mu)
     attr(x,"tau") <- substitute(tau)
@@ -112,6 +117,12 @@ mcmc.normal <- function(x,mu,tau,observed=FALSE) {
 mcmc.uniform <- function(x,lower,upper,observed=FALSE) {
     if(missing(lower)) stop("required argument 'lower' missing.")
     if(missing(upper)) stop("required argument 'upper' missing.")
+
+    if(length(lower) > length(x) || length(upper) > length(x)) {
+        stop("dimensions of hyperparmeters are larger than the stochastic variable itself. ",
+             "(is this really what you wanted to do?)")
+    }
+
     attr(x,"distributed") <- "uniform"
     attr(x,"lower") <- substitute(lower)
     attr(x,"upper") <- substitute(upper)
@@ -124,6 +135,12 @@ mcmc.uniform <- function(x,lower,upper,observed=FALSE) {
 mcmc.gamma <- function(x,alpha,beta,observed=FALSE) {
     if(missing(alpha)) stop("required argument 'alpha' missing.")
     if(missing(beta)) stop("required argument 'beta' missing.")
+
+    if(length(alpha) > length(x) || length(beta) > length(x)) {
+        stop("dimensions of hyperparmeters are larger than the stochastic variable itself. ",
+             "(is this really what you wanted to do?)")
+    }
+
     attr(x,"distributed") <- "gamma"
     attr(x,"alpha") <- substitute(alpha)
     attr(x,"beta") <- substitute(beta)
@@ -136,6 +153,12 @@ mcmc.gamma <- function(x,alpha,beta,observed=FALSE) {
 mcmc.beta <- function(x,alpha,beta,observed=FALSE) {
     if(missing(alpha)) stop("required argument 'alpha' missing.")
     if(missing(beta)) stop("required argument 'beta' missing.")
+
+    if(length(alpha) > length(x) || length(beta) > length(x)) {
+        stop("dimensions of hyperparmeters are larger than the stochastic variable itself. ",
+             "(is this really what you wanted to do?)")
+    }
+
     attr(x,"distributed") <- "beta"
     attr(x,"alpha") <- substitute(alpha)
     attr(x,"beta") <- substitute(beta)
@@ -147,6 +170,12 @@ mcmc.beta <- function(x,alpha,beta,observed=FALSE) {
 
 mcmc.bernoulli <- function(x,p,observed=FALSE) {
     if(missing(p)) stop("required argument 'p' missing.")
+
+    if(length(p) > length(x)) {
+        stop("dimensions of hyperparmeters are larger than the stochastic variable itself. ",
+             "(is this really what you wanted to do?)")
+    }
+
     attr(x,"distributed") <- "bernoulli"
     attr(x,"p") <- substitute(p)
     attr(x,"observed") <- observed
@@ -158,6 +187,12 @@ mcmc.bernoulli <- function(x,p,observed=FALSE) {
 mcmc.binomial <- function(x,n,p,observed=FALSE) {
     if(missing(n)) stop("required argument 'n' missing.")
     if(missing(p)) stop("required argument 'p' missing.")
+
+    if(length(n) > length(x) || length(p) > length(x)) {
+        stop("dimensions of hyperparmeters are larger than the stochastic variable itself. ",
+             "(is this really what you wanted to do?)")
+    }
+
     attr(x,"distributed") <- "binomial"
     attr(x,"n") <- substitute(n)
     attr(x,"p") <- substitute(p)
