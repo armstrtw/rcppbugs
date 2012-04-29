@@ -72,6 +72,7 @@ linear <- function(X,b) {
     stopifnot(is.null(dim(b)))
     stopifnot(!is.null(dim(X)))
     stopifnot(length(dim(X))==2L)
+    stopifnot(length(b)==ncol(X))
     x <- X %*% b
     attr(x,"distributed") <- "linear.deterministic"
     attr(x,"X") <- substitute(X)
@@ -88,6 +89,7 @@ logistic <- function(X,b) {
     stopifnot(is.null(dim(b)))
     stopifnot(!is.null(dim(X)))
     stopifnot(length(dim(X))==2L)
+    stopifnot(length(b)==ncol(X))
     x <- 1/(1 + exp(-X %*% b))
     attr(x,"distributed") <- "logistic.deterministic"
     attr(x,"X") <- substitute(X)
@@ -97,14 +99,36 @@ logistic <- function(X,b) {
     x
 }
 
+check.dim.eq <- function(x,hyper) {
+    ## check length equality if hyper is not a scalar and x and hyper are both vectors
+    if(length(hyper) != 1 && is.null(dim(hyper)) && is.null(dim(x)) && length(x) != length(hyper)) {
+        stop("hyperparameter length does not match it's variable (arma does not recycle).")
+    }
+
+
+    ## fail if hyper is not a scalar and x has a dimension and hyper doesn't
+    if(length(hyper) != 1 && !is.null(dim(x)) && is.null(dim(hyper))) {
+        stop("hyperparameter does have a dimensions attribute (and the stochastic variable does).")
+    }
+
+    ## check dimension equality if both x and hyper have dims
+    if(!is.null(dim(x)) && !is.null(dim(hyper))) {
+        if(!all.equal(dim(x),dim(hyper))) {
+            stop("dimension of hyperparameter must be the same as the stochastic variable")
+        }
+    }
+}
+
 mcmc.normal <- function(x,mu,tau,observed=FALSE) {
     if(missing(mu)) stop("required argument 'mu' missing.")
     if(missing(tau)) stop("required argument 'tau' missing.")
-
     if(length(mu) > length(x) || length(tau) > length(x)) {
         stop("dimensions of hyperparmeters are larger than the stochastic variable itself. ",
              "(is this really what you wanted to do?)")
     }
+    check.dim.eq(x,mu)
+    check.dim.eq(x,tau)
+
     attr(x,"distributed") <- "normal"
     attr(x,"mu") <- substitute(mu)
     attr(x,"tau") <- substitute(tau)
@@ -117,11 +141,12 @@ mcmc.normal <- function(x,mu,tau,observed=FALSE) {
 mcmc.uniform <- function(x,lower,upper,observed=FALSE) {
     if(missing(lower)) stop("required argument 'lower' missing.")
     if(missing(upper)) stop("required argument 'upper' missing.")
-
     if(length(lower) > length(x) || length(upper) > length(x)) {
         stop("dimensions of hyperparmeters are larger than the stochastic variable itself. ",
              "(is this really what you wanted to do?)")
     }
+    check.dim.eq(x,lower)
+    check.dim.eq(x,upper)
 
     attr(x,"distributed") <- "uniform"
     attr(x,"lower") <- substitute(lower)
@@ -140,6 +165,8 @@ mcmc.gamma <- function(x,alpha,beta,observed=FALSE) {
         stop("dimensions of hyperparmeters are larger than the stochastic variable itself. ",
              "(is this really what you wanted to do?)")
     }
+    check.dim.eq(x,alpha)
+    check.dim.eq(x,beta)
 
     attr(x,"distributed") <- "gamma"
     attr(x,"alpha") <- substitute(alpha)
@@ -158,6 +185,8 @@ mcmc.beta <- function(x,alpha,beta,observed=FALSE) {
         stop("dimensions of hyperparmeters are larger than the stochastic variable itself. ",
              "(is this really what you wanted to do?)")
     }
+    check.dim.eq(x,alpha)
+    check.dim.eq(x,beta)
 
     attr(x,"distributed") <- "beta"
     attr(x,"alpha") <- substitute(alpha)
@@ -175,6 +204,7 @@ mcmc.bernoulli <- function(x,p,observed=FALSE) {
         stop("dimensions of hyperparmeters are larger than the stochastic variable itself. ",
              "(is this really what you wanted to do?)")
     }
+    check.dim.eq(x,p)
 
     attr(x,"distributed") <- "bernoulli"
     attr(x,"p") <- substitute(p)
@@ -192,6 +222,8 @@ mcmc.binomial <- function(x,n,p,observed=FALSE) {
         stop("dimensions of hyperparmeters are larger than the stochastic variable itself. ",
              "(is this really what you wanted to do?)")
     }
+    check.dim.eq(x,n)
+    check.dim.eq(x,p)
 
     attr(x,"distributed") <- "binomial"
     attr(x,"n") <- substitute(n)
