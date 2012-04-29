@@ -61,7 +61,7 @@ deterministic <- function(f,...) {
     attr(x,"distributed") <- "deterministic"
     attr(x,"update.method") <- compiler::compile(f)
     attr(x,"call") <- mc
-    attr(x,"env") <- new.env()
+    attr(x,"env") <- parent.frame()
     class(x) <- "mcmc.object"
     x
 }
