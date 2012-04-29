@@ -41,7 +41,7 @@ logp <- function(x) {
 
 create.model <- function(...) {
     m <- match.call()
-    attr(m,"env") <- new.env()
+    attr(m,"env") <- parent.frame()
     class(m) <- "mcmc.model"
     m
 }
@@ -77,7 +77,7 @@ linear <- function(X,b) {
     attr(x,"distributed") <- "linear.deterministic"
     attr(x,"X") <- substitute(X)
     attr(x,"b") <- substitute(b)
-    attr(x,"env") <- new.env()
+    attr(x,"env") <- parent.frame()
     class(x) <- "mcmc.object"
     x
 }
@@ -94,7 +94,7 @@ logistic <- function(X,b) {
     attr(x,"distributed") <- "logistic.deterministic"
     attr(x,"X") <- substitute(X)
     attr(x,"b") <- substitute(b)
-    attr(x,"env") <- new.env()
+    attr(x,"env") <- parent.frame()
     class(x) <- "mcmc.object"
     x
 }
@@ -133,7 +133,7 @@ mcmc.normal <- function(x,mu,tau,observed=FALSE) {
     attr(x,"mu") <- substitute(mu)
     attr(x,"tau") <- substitute(tau)
     attr(x,"observed") <- observed
-    attr(x,"env") <- new.env()
+    attr(x,"env") <- parent.frame()
     class(x) <- "mcmc.object"
     x
 }
@@ -152,7 +152,7 @@ mcmc.uniform <- function(x,lower,upper,observed=FALSE) {
     attr(x,"lower") <- substitute(lower)
     attr(x,"upper") <- substitute(upper)
     attr(x,"observed") <- observed
-    attr(x,"env") <- new.env()
+    attr(x,"env") <- parent.frame()
     class(x) <- "mcmc.object"
     x
 }
@@ -172,7 +172,7 @@ mcmc.gamma <- function(x,alpha,beta,observed=FALSE) {
     attr(x,"alpha") <- substitute(alpha)
     attr(x,"beta") <- substitute(beta)
     attr(x,"observed") <- observed
-    attr(x,"env") <- new.env()
+    attr(x,"env") <- parent.frame()
     class(x) <- "mcmc.object"
     x
 }
@@ -192,7 +192,7 @@ mcmc.beta <- function(x,alpha,beta,observed=FALSE) {
     attr(x,"alpha") <- substitute(alpha)
     attr(x,"beta") <- substitute(beta)
     attr(x,"observed") <- observed
-    attr(x,"env") <- new.env()
+    attr(x,"env") <- parent.frame()
     class(x) <- "mcmc.object"
     x
 }
@@ -209,7 +209,7 @@ mcmc.bernoulli <- function(x,p,observed=FALSE) {
     attr(x,"distributed") <- "bernoulli"
     attr(x,"p") <- substitute(p)
     attr(x,"observed") <- observed
-    attr(x,"env") <- new.env()
+    attr(x,"env") <- parent.frame()
     class(x) <- "mcmc.object"
     x
 }
@@ -229,7 +229,7 @@ mcmc.binomial <- function(x,n,p,observed=FALSE) {
     attr(x,"n") <- substitute(n)
     attr(x,"p") <- substitute(p)
     attr(x,"observed") <- observed
-    attr(x,"env") <- new.env()
+    attr(x,"env") <- parent.frame()
     class(x) <- "mcmc.object"
     x
 }
