@@ -71,6 +71,11 @@ namespace cppbugs {
       logp_value_ = logp();
     }
 
+    void resetAcceptanceRatio() {
+      accepted_ = 0;
+      rejected_ = 0;
+    }
+
     bool reject(const double value, const double old_logp) {
       return bad_logp(value) || log(rng_.uniform()) > (value - old_logp) ? true : false;
     }
@@ -101,20 +106,52 @@ namespace cppbugs {
       }
     }
 
+    void step() {
+      old_logp_value_ = logp_value_;
+      preserve();
+      jump();
+      logp_value_ = logp();
+      if(reject(logp_value_, old_logp_value_)) {
+        revert();
+        logp_value_ = old_logp_value_;
+        rejected_ += 1;
+      } else {
+        accepted_ += 1;
+      }
+    }
+
+    void tune_global(int iterations, int tuning_step) {
+      const double thresh = 0.1;
+      // FIXME: this should possibly related to the overall size/dimension
+      // of the parmaeters to be estimtated, as there is somewhat of a leverage effect
+      // via the number of parameters
+      const double dilution = 0.10;
+      double total_size = 0;
+
+      for(size_t i = 0; i < dynamic_nodes.size(); i++) {
+        if(dynamic_nodes[i]->isStochastic()) {
+          total_size += dynamic_nodes[i]->size();
+        }
+      }
+      double target_ar = std::max(1/log2(total_size + 3), 0.234);
+      for(int i = 1; i <= iterations; i++) {
+        step();
+        if(i % tuning_step == 0) {
+          double diff = acceptance_ratio() - target_ar;
+          resetAcceptanceRatio();
+          if(std::abs(diff) > thresh) {
+            double adj_factor = (1.0 + diff * dilution);
+            for(size_t i = 0; i < dynamic_nodes.size(); i++) {
+              dynamic_nodes[i]->setScale(dynamic_nodes[i]->getScale() * adj_factor);
+            }
+          }
+        }
+      }
+    }
+
     void run(int iterations, int burn, int thin) {
       for(int i = 1; i <= (iterations + burn); i++) {
-        //std::cout << i << std::endl;
-        old_logp_value_ = logp_value_;
-        preserve();
-        jump();
-        logp_value_ = logp();
-        if(reject(logp_value_, old_logp_value_)) {
-          revert();
-          logp_value_ = old_logp_value_;
-          rejected_ += 1;
-        } else {
-          accepted_ += 1;
-        }
+        step();
         if(i > burn && (i % thin == 0)) {
           tally();
         }
@@ -149,6 +186,7 @@ namespace cppbugs {
       if(adapt >= 200) {
         tune(adapt,static_cast<int>(adapt/100));
       }
+      if(true) { tune_global(adapt,static_cast<int>(adapt/100)); }
       run(iterations, burn, thin);
     }
   };
