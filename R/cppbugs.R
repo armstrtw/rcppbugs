@@ -53,6 +53,13 @@ run.model <- function(m, iterations, burn, adapt, thin) {
     .Call("runModel", m, iterations, burn, adapt, thin, PACKAGE="rcppbugs")
 }
 
+get.ar <- function(x) {
+    if(is.null(attr(x,"acceptance.ratio"))) {
+        stop("x is not a 'cppbugs.trace' object.")
+    }
+    attr(x,"acceptance.ratio")
+}
+
 deterministic <- function(f,...) {
     mc <- match.call()
     stopifnot(typeof(eval(mc[[2]]))=="closure")

@@ -4,6 +4,7 @@ S3method(print, mcmc.object)
 export(create.model,
        logp,
        run.model,
+       get.ar,
        deterministic,
        linear,
        logistic,

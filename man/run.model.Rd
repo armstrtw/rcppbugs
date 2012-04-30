@@ -1,6 +1,7 @@
 \name{run.model}
 \alias{run.model}
 \alias{create.model}
+\alias{get.ar}
 \title{
   Create and run rcppbugs models.
 }
@@ -14,6 +15,7 @@
 \usage{
 create.model(...)
 run.model(m, iterations, burn, adapt, thin)
+get.ar(x)
 }
 
 \arguments{
@@ -22,12 +24,14 @@ run.model(m, iterations, burn, adapt, thin)
   \item{burn}{how many iterations to use for burnin.}
   \item{adapt}{how many iterations to use for the adaptive period.}
   \item{thin}{how frequently to record traces of the model nodes.}
-  \item{\dots}{rcppbugs objects to use as the nodes of the model}
+  \item{\dots}{rcppbugs objects to use as the nodes of the model.}
+  \item{x}{the result of an rcppbugs run.}
 }
 \value{
   create.model returns a mcmc.model model object.
   run.model returns a named list containing the historical traces of the
   model run.
+  get.ar returns the acceptance ratio of an MCMC run
 }
 \references{
 https://github.com/armstrtw/CppBugs
@@ -59,6 +63,8 @@ m <- create.model(b, tau.y, y.hat, y.lik)
 
 
 runtime <- system.time(ans <- run.model(m, iterations=1e2L, burn=1e2L, adapt=1e3L, thin=10L))
+print(get.ar(ans))
+
 print(apply(ans[["b"]],2,mean))
 
 }
