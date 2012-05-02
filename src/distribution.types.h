@@ -19,7 +19,7 @@
 #ifndef DISTRIBUTION_TYPES_H
 #define DISTRIBUTION_TYPES_H
 
-enum distT { /*deterministic*/ deterministicT, linearDeterministicT, logisticDeterministicT,
+enum distT { /*deterministic*/ deterministicT, linearDeterministicT, linearGroupedDeterministicT, logisticDeterministicT,
              /*continuous*/ normalDistT, uniformDistT, gammaDistT, betaDistT,
              /*discrete*/ bernoulliDistT, binomialDistT };
 

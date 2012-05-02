@@ -89,6 +89,25 @@ linear <- function(X,b) {
     x
 }
 
+linear.grouped <- function(X,b,group) {
+    if(missing(X)) stop("required argument 'X' missing.")
+    if(missing(b)) stop("required argument 'b' missing.")
+    if(missing(group)) stop("required argument 'group' missing.")
+    if(is.null(dim(b))) { stop ("'b' must be a matrix.") }
+    if(is.null(dim(X))) { stop("'X' must be a matrix.") }
+    stopifnot(length(dim(X))==2L)
+    if(ncol(b)!=ncol(X)) { stop("the number of columns of X must match the number of columns of b") }
+    if(length(group)!=nrow(X)) { stop("the length of 'group' must match the number of rows of 'X'.") }
+    x <- as.matrix(apply(X * b[group,],1,sum))
+    attr(x,"distributed") <- "linear.grouped.deterministic"
+    attr(x,"X") <- substitute(X)
+    attr(x,"b") <- substitute(b)
+    attr(x,"group") <- substitute(group)
+    attr(x,"env") <- parent.frame()
+    class(x) <- "mcmc.object"
+    x
+}
+
 
 logistic <- function(X,b) {
     if(missing(X)) stop("required argument 'X' missing.")

@@ -1,6 +1,7 @@
 \name{deterministic}
 \alias{deterministic}
 \alias{linear}
+\alias{linear.grouped}
 \alias{logistic}
 
 \title{
@@ -14,10 +15,17 @@
 }
 \usage{
 deterministic(f, ...)
+linear(X,b)
+linear.grouped(X,b,group)
 }
 
 \arguments{
-  \item{f}{a user provided funtion that updates the value of the variable}
+  \item{f}{a user provided funtion that updates the value of the
+    variable}
+  \item{X}{the data matrix X to be used in estimation}
+  \item{b}{the coefficient vector b to be used in estimation}
+  \item{group}{an integer vector equal in length to the rows of X
+  indicating the group membership of the corresponding row}
   \item{\dots}{arguments to function f}
 }
 \details{

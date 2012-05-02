@@ -40,6 +40,7 @@
 #include "assign.binomial.logp.h"
 #include "r.deterministic.h"
 #include "linear.deterministic.h"
+#include "linear.grouped.deterministic.h"
 #include "logistic.deterministic.h"
 #include "r.mcmc.model.h"
 
@@ -55,6 +56,7 @@ extern "C" SEXP runModel(SEXP mp_, SEXP iterations, SEXP burn_in, SEXP adapt, SE
 cppbugs::MCMCObject* createMCMC(SEXP x, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createDeterministic(SEXP args_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createLinearDeterministic(SEXP x_, vpArmaMapT& armaMap);
+cppbugs::MCMCObject* createLinearGroupedDeterministic(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createLogisticDeterministic(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createNormal(SEXP x_, vpArmaMapT& armaMap);
 cppbugs::MCMCObject* createUniform(SEXP x_, vpArmaMapT& armaMap);
@@ -360,6 +362,9 @@ cppbugs::MCMCObject* createMCMC(SEXP x_, vpArmaMapT& armaMap) {
   case linearDeterministicT:
     ans = createLinearDeterministic(x_,armaMap);
     break;
+  case linearGroupedDeterministicT:
+    ans = createLinearGroupedDeterministic(x_,armaMap);
+    break;
   case logisticDeterministicT:
     ans = createLogisticDeterministic(x_,armaMap);
     break;
@@ -490,6 +495,63 @@ cppbugs::MCMCObject* createLinearDeterministic(SEXP x_, vpArmaMapT& armaMap) {
     break;
   default:
     throw std::logic_error("ERROR: createLogisticDeterministic, combination of arguments not supported.");
+  }
+  return p;
+}
+
+cppbugs::MCMCObject* createLinearGroupedDeterministic(SEXP x_, vpArmaMapT& armaMap) {
+  const int eval_limit = 10;
+  cppbugs::MCMCObject* p;
+  ArmaContext* x_arma = armaMap[rawAddress(x_)];
+
+  SEXP env_ = Rf_getAttrib(x_,Rf_install("env"));
+  SEXP X_ = Rf_getAttrib(x_,Rf_install("X"));
+  SEXP b_ = Rf_getAttrib(x_,Rf_install("b"));
+  SEXP group_ = Rf_getAttrib(x_,Rf_install("group"));
+
+  if(x_ == R_NilValue || env_ == R_NilValue || X_ == R_NilValue || b_ == R_NilValue || group_ == R_NilValue) {
+    throw std::logic_error("ERROR: createLinearDeterministic, missing or null argument.");
+  }
+
+  // force substitutions
+  X_ = forceEval(X_, env_, eval_limit);
+  b_ = forceEval(b_, env_, eval_limit);
+  group_ = forceEval(group_, env_, eval_limit);
+
+  // map to arma types
+  ArmaContext* X_arma = mapOrFetch(X_, armaMap);
+  ArmaContext* b_arma = mapOrFetch(b_, armaMap);
+  ArmaContext* group_arma = mapOrFetch(group_, armaMap);
+
+  // little x
+  if(x_arma->getArmaType() != matT) {
+    throw std::logic_error("ERROR: createLinearGroupedDeterministic, x must be a real valued matrix.");
+  }
+
+  // big X
+  if(X_arma->getArmaType() != matT) {
+    throw std::logic_error("ERROR: createLinearGroupedDeterministic, X must be a matrix.");
+  }
+
+  // b -- coefs vector
+  if(b_arma->getArmaType() != matT) {
+    throw std::logic_error("ERROR: createLinearGroupedDeterministic, b must be a real valued matrix.");
+  }
+
+  // group -- multilevel group
+  if(group_arma->getArmaType() != ivecT) {
+    throw std::logic_error("ERROR: createLinearGroupedDeterministic, group must be an integer vector.");
+  }
+
+  switch(X_arma->getArmaType()) {
+  case matT:
+    p = new cppbugs::LinearGroupedDeterministic<arma::mat>(x_arma->getMat(),X_arma->getMat(),b_arma->getMat(),group_arma->getiVec());
+    break;
+  case imatT:
+    p = new cppbugs::LinearGroupedDeterministic<arma::imat>(x_arma->getMat(),X_arma->getiMat(),b_arma->getMat(),group_arma->getiVec());
+    break;
+  default:
+    throw std::logic_error("ERROR: createLinearGroupedDeterministic, combination of arguments not supported.");
   }
   return p;
 }
