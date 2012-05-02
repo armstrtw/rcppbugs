@@ -162,8 +162,11 @@ namespace cppbugs {
     // FIXME: use generic iterators later...
     RMCModel(std::vector<MCMCObject*> mcmcObjects): accepted_(0), rejected_(0), logp_value_(-std::numeric_limits<double>::infinity()), old_logp_value_(-std::numeric_limits<double>::infinity()), mcmcObjects_(mcmcObjects) {
       initChain();
+      if(logp()==-std::numeric_limits<double>::infinity()) {
+        throw std::logic_error("ERROR: cannot start from a logp of -Inf.");
+      }
     }
-    
+
     double acceptance_ratio() const {
       return accepted_ / (accepted_ + rejected_);
     }
