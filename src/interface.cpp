@@ -397,6 +397,7 @@ cppbugs::MCMCObject* createMCMC(SEXP x_, vpArmaMapT& armaMap) {
 }
 
 cppbugs::MCMCObject* createDeterministic(SEXP x_, vpArmaMapT& armaMap) {
+  SEXP args_;
   cppbugs::MCMCObject* p;
   ArmaContext* x_arma = armaMap[rawAddress(x_)];
 
@@ -418,24 +419,21 @@ cppbugs::MCMCObject* createDeterministic(SEXP x_, vpArmaMapT& armaMap) {
     throw std::logic_error("ERROR: function must have at least one argument.");
   }
 
-  arglistT arglist;
-  initArgList(call_, arglist, 2);
-  for(size_t i = 0; i < arglist.size(); i++) {
-    if(TYPEOF(arglist[i])==SYMSXP) { arglist[i] = Rf_eval(arglist[i],env_); }
-    getArma(arglist[i]); // for debug print
-  }
+  // advance by 2
+  args_ = CDR(call_);
+  args_ = CDR(args_);
 
   // map to arma types
   try {
     switch(x_arma->getArmaType()) {
     case doubleT:
-      p = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_,arglist);
+      p = new cppbugs::RDeterministic<double>(x_arma->getDouble(),fun_,args_,env_);
       break;
     case vecT:
-      p = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_,arglist);
+      p = new cppbugs::RDeterministic<arma::vec>(x_arma->getVec(),fun_,args_,env_);
       break;
     case matT:
-      p = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_,arglist);
+      p = new cppbugs::RDeterministic<arma::mat>(x_arma->getMat(),fun_,args_,env_);
       break;
     case intT:
     case ivecT:
