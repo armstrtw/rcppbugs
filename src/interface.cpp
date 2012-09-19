@@ -236,6 +236,7 @@ SEXP createTrace(arglistT& arglist, vpArmaMapT& armaMap, vpMCMCMapT& mcmcMap) {
 
 SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
   const int eval_limit = 10;
+  int protect_count(0);
 
   SEXP env_ = Rf_getAttrib(m_,Rf_install("env"));
   if(env_ == R_NilValue || TYPEOF(env_) != ENVSXP) {
@@ -257,7 +258,7 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
     if(TYPEOF(arglist[i])==SYMSXP) { argnames.push_back(CHAR(PRINTNAME(arglist[i]))); }
 
     // force eval of late bindings
-    arglist[i] = forceEval(arglist[i],env_,eval_limit);
+    PROTECT(arglist[i] = forceEval(arglist[i],env_,eval_limit)); ++protect_count;
 
     try {
       ArmaContext* ap = getArma(arglist[i]);
@@ -266,8 +267,7 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
       mcmcMap[rawAddress(arglist[i])] = node;
       mcmcObjects.push_back(node);
     } catch (std::logic_error &e) {
-      releaseMap(armaMap);
-      releaseMap(mcmcMap);
+      releaseMap(armaMap); releaseMap(mcmcMap); UNPROTECT(protect_count);
       REprintf("%s\n",e.what());
       return R_NilValue;
     }
@@ -284,8 +284,7 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
     //std::cout << "acceptance_ratio: " << m.acceptance_ratio() << std::endl;
     REAL(ar)[0] = m.acceptance_ratio();
   } catch (std::logic_error &e) {
-    releaseMap(armaMap);
-    releaseMap(mcmcMap);
+    releaseMap(armaMap); releaseMap(mcmcMap); UNPROTECT(protect_count);
     UNPROTECT(1); // ar
     REprintf("%s\n",e.what());
     return R_NilValue;
@@ -293,8 +292,7 @@ SEXP runModel(SEXP m_, SEXP iterations, SEXP burn_in, SEXP adapt, SEXP thin) {
 
   SEXP ans;
   PROTECT(ans = createTrace(arglist,armaMap,mcmcMap));
-  releaseMap(armaMap);
-  releaseMap(mcmcMap);
+  releaseMap(armaMap);releaseMap(mcmcMap); UNPROTECT(protect_count);
   Rf_setAttrib(ans, R_NamesSymbol, makeNames(argnames));
   Rf_setAttrib(ans, Rf_install("acceptance.ratio"), ar);
   UNPROTECT(2); // ans + ar
