@@ -1,6 +1,6 @@
 Package: rcppbugs
 Title: R binding for cppbugs
-Version: 0.1.0
+Version: 0.1.1
 Maintainer: Whit Armstrong <armstrong.whit@gmail.com>
 Author: Whit Armstrong <armstrong.whit@gmail.com>
 Description: R binding for cppbugs
