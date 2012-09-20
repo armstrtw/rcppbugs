@@ -19,7 +19,7 @@
 #define ASSIGN_BERNOULLI_LOGP_H
 
 #include "arma.context.h"
-#include <cppbugs/mcmc.bernoulli.hpp>
+#include <cppbugs/distributions/mcmc.bernoulli.hpp>
 
 template<template<typename> class MCTYPE, typename T>
 MCTYPE<T>* assignBernoulliLogp(T& x, ArmaContext* p) {

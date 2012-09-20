@@ -19,7 +19,7 @@
 #define ASSIGN_GAMMA_LOGP_H
 
 #include "arma.context.h"
-#include <cppbugs/mcmc.gamma.hpp>
+#include <cppbugs/distributions/mcmc.gamma.hpp>
 
 template<template<typename> class MCTYPE, typename T>
 MCTYPE<T>* assignGammaLogp(T& x, ArmaContext* alpha, ArmaContext* beta) {

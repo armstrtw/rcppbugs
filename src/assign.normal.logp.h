@@ -19,7 +19,7 @@
 #define ASSIGN_NORMAL_LOGP_H
 
 #include "arma.context.h"
-#include <cppbugs/mcmc.normal.hpp>
+#include <cppbugs/distributions/mcmc.normal.hpp>
 
 template<template<typename> class MCTYPE, typename T>
 MCTYPE<T>* assignNormalLogp(T& x, ArmaContext* mu, ArmaContext* tau) {

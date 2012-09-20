@@ -19,7 +19,7 @@
 #define ASSIGN_BINOMIAL_LOGP_H
 
 #include "arma.context.h"
-#include <cppbugs/mcmc.binomial.hpp>
+#include <cppbugs/distributions/mcmc.binomial.hpp>
 
 template<template<typename> class MCTYPE, typename T>
 MCTYPE<T>* assignBinomialLogp(T& x, ArmaContext* n, ArmaContext* p) {
