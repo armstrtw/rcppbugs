@@ -71,6 +71,13 @@ void initArgList(SEXP args, arglistT& arglist, const size_t skip);
 SEXP makeNames(std::vector<const char*>& argnames);
 SEXP createTrace(arglistT& arglist, vpArmaMapT& armaMap, vpMCMCMapT& mcmcMap);
 
+template<typename T>
+void releaseMap(T& m) {
+  for (typename T::iterator it=m.begin(); it != m.end(); it++) {
+    delete it->second;
+  }
+}
+
 void initArgList(SEXP args, arglistT& arglist, const size_t skip) {
 
   for(size_t i = 0; i < skip; i++) {
@@ -110,10 +117,10 @@ SEXP logp(SEXP x_, SEXP rho_) {
 
   try {
     x_ = forceEval(x_, rho_, eval_limit);
-    ArmaContext* ap = getArma(x_);
-    armaMap[rawAddress(x_)] = ap;
+    ArmaContext* ap = mapOrFetch(x_, armaMap);
     node = createMCMC(x_,armaMap);
   } catch (std::logic_error &e) {
+    releaseMap(armaMap); UNPROTECT(armaMap.size());
     REprintf("%s\n",e.what());
     return R_NilValue;
   }
@@ -124,6 +131,7 @@ SEXP logp(SEXP x_, SEXP rho_) {
   } else {
     REprintf("ERROR: could not convert node to stochastic.\n");
   }
+  releaseMap(armaMap); UNPROTECT(armaMap.size());
   return Rcpp::wrap(ans);
 }
 
@@ -202,13 +210,6 @@ SEXP makeNames(std::vector<const char*>& argnames) {
   }
   UNPROTECT(1);
   return ans;
-}
-
-template<typename T>
-void releaseMap(T& m) {
-  for (typename T::iterator it=m.begin(); it != m.end(); it++) {
-    delete it->second;
-  }
 }
 
 SEXP createTrace(arglistT& arglist, vpArmaMapT& armaMap, vpMCMCMapT& mcmcMap) {
